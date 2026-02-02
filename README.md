@@ -13,11 +13,12 @@ PoC Mode (-poc): Automatically tests for 403 Forbidden bypasses using custom hea
 
 Full Automation (-all): The "Master Switch" that turns on every scan engine at once—Secrets, Endpoints, and PoCs—for high-impact results.
 
-🛠️ INSTALLATION
+### 🛠️ INSTALLATION
 
-Clone the repository and install the necessary dependencies:
+**Clone the repository and install the necessary dependencies:**
 
-git clone https://github.com/D-666-V/THE_GOD_FATHER.git
+```bash
+git clone [https://github.com/D-666-V/THE_GOD_FATHER.git](https://github.com/D-666-V/THE_GOD_FATHER.git)
 cd THE_GOD_FATHER
 pip3 install -r requirements.txt
 
