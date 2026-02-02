@@ -11,7 +11,7 @@ Bash
 
 git clone https://github.com/D-666-V/THE_GOD_FATHER.git
 cd THE_GOD_FATHER
-pip3 install -r requirements.txt
+`pip3 install -r requirements.txt`
 
 📖 USAGE
 
