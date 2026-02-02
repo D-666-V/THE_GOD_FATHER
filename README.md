@@ -9,8 +9,8 @@ GODFATHER is a high-speed reconnaissance engine designed for bug hunters and sec
 Clone the repository and install the necessary dependencies:
 Bash
 
-git clone https://github.com/D-666-V/THE_GOD_FATHER.git
-cd THE_GOD_FATHER
+`git clone https://github.com/D-666-V/THE_GOD_FATHER.git`
+`cd THE_GOD_FATHER`
 `pip3 install -r requirements.txt`
 
 📖 USAGE
@@ -20,12 +20,11 @@ Provide your list of target URLs and choose your hunting mode:
 Full Chaos Mode (Secrets + Endpoints + PoCs)
 Bash
 
-python3 GOD_FATHER.py -i targets.txt -all -v
+`python3 GOD_FATHER.py -i targets.txt -all -v`
 
 Target Secrets specifically
-Bash
 
-python3 GOD_FATHER.py -i targets.txt -ky -v
+`python3 GOD_FATHER.py -i targets.txt -ky -v`
 
 📊 PROOF OF WORK
 
