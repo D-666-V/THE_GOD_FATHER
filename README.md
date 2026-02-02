@@ -1,3 +1,8 @@
+![Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54)
+![Cybersecurity](https://img.shields.io/badge/cybersecurity-red?style=for-the-badge&logo=generic)
+![Tool](https://img.shields.io/badge/Tool-GodFather-cyan?style=for-the-badge)
+
+
 THE GODFATHER V16.0
 
 The Most Dangerous JS Recon Tool for Massive Secret Hunting & Endpoint Discovery.
