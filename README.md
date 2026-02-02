@@ -1,9 +1,11 @@
 THE GODFATHER V16.0
 
 The Most Dangerous JS Recon Tool for Massive Secret Hunting & Endpoint Discovery.
+
 🚀 OVERVIEW
 
 GODFATHER is a high-speed reconnaissance engine designed for bug hunters and security researchers. It automates the extraction of sensitive secrets, API keys, and hidden endpoints from JavaScript files at scale.
+
 🛠️ INSTALLATION
 
 Clone the repository and install the necessary dependencies:
