@@ -25,10 +25,10 @@ pip3 install -r requirements.txt
 
 Provide your list of target URLs and choose your hunting mode:
 
-# Full Chaos Mode (Secrets + Endpoints + PoCs)
+Full Chaos Mode (Secrets + Endpoints + PoCs)
 python3 GOD_FATHER.py -i targets.txt -all -v
 
-# Target Secrets specifically
+Target Secrets specifically
 python3 GOD_FATHER.py -i targets.txt -ky -v
 
 📊 PROOF OF WORK
