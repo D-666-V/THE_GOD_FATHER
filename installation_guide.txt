@@ -1,0 +1,42 @@
+============================================================
+           GODFATHER V16.0 - INSTALLATION GUIDE
+============================================================
+
+1. UPDATE SYSTEM & INSTALL PIP:
+   sudo apt update && sudo apt install python3-pip -y
+
+2. INSTALL DEPENDENCIES:
+   pip install -r requirements.txt
+
+3. SET EXECUTABLE PERMISSION:
+   chmod +x GOD_FATHER.py
+
+4. BASIC USAGE (Choose your Scan Mode):
+   - Hunt for Secrets/Keys:
+     python3 GOD_FATHER.py -i links.txt -ky
+   - Hunt for API Endpoints:
+     python3 GOD_FATHER.py -i links.txt -ep
+   - Hunt for Sensitive Files:
+     python3 GOD_FATHER.py -i links.txt -sf
+
+5. ADVANCED USAGE (With Domain & Threads):
+   python3 GOD_FATHER.py -i paths.txt -d https://adidas.com -t 150 -o results.txt -all
+
+6. FULL POWER (All Scans + Verification + PoC):
+   python3 GOD_FATHER.py -i links.txt -all -v -poc -o findings.txt
+
+7. HELP SECTION:
+   python3 GOD_FATHER.py -h
+
+============================================================
+NEW MODULAR FLAGS:
+  -ky  : Hunt for Secrets/Keys (AWS, Google, etc.)
+  -ep  : Hunt for API Endpoints & Hidden Paths
+  -sf  : Hunt for Sensitive Files (.env, .git, etc.)
+  -poc : Test for Open Redirects & 403 Bypasses
+  -all : Run ALL scans together
+  -v   : Verify "Live" status (200 OK)
+============================================================
+NOTE: Use -d ONLY if your input file contains partial paths
+      (e.g., /api/v1) instead of full URLs.
+============================================================
