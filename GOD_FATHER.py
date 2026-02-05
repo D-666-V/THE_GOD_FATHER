@@ -198,7 +198,7 @@ def main():
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("-i", "--input")
     parser.add_argument("-t", "--threads", type=int, default=150)
-    parser.add_argument("-o", "--output", default="results.txt")
+    parser.add_argument("-o", "--output", default=None) 
     parser.add_argument("-d", "--domain")
     parser.add_argument("-v", "--verify", action="store_true")
     parser.add_argument("-ky", action="store_true")
@@ -211,15 +211,17 @@ def main():
 
     args = parser.parse_args()
 
+    # Pehle Banner sirf ek baar
+    print_banner()
+
     if args.help or not args.input:
-        print_banner()
         help_menu = f"""
 {Fore.RED}{Style.BRIGHT}USAGE: python3 test.py -i <urls.txt> [OPTIONS]
 
 {Fore.RED}{Style.BRIGHT}CORE ARGUMENTS:
   {Fore.WHITE}-i, --input    {Fore.YELLOW}Input file containing URLs (Required)
   {Fore.WHITE}-t, --threads  {Fore.YELLOW}Number of threads (Default: 150)
-  {Fore.WHITE}-o, --output   {Fore.YELLOW}Save results to file (Default: results.txt)
+  {Fore.WHITE}-o, --output   {Fore.YELLOW}Save results to file (Optional)
   {Fore.WHITE}-d, --domain   {Fore.YELLOW}Filter by domain name
 
 {Fore.RED}{Style.BRIGHT}MODULES:
@@ -237,19 +239,21 @@ def main():
         print(help_menu)
         sys.exit(0)
 
-    print_banner()
-    try:
-        with open(args.input, 'r', encoding='utf-8', errors='ignore') as f:
-            urls = list(set(line.strip() for line in f if line.strip()))
-    except:
-        print(f"{Fore.RED}[!] Error: Input file '{args.input}' nahi mili!")
-        sys.exit(1)
-    
-    stats["total"] = len(urls)
-    with ThreadPoolExecutor(max_workers=args.threads) as executor:
-        futures = {executor.submit(process_url, url, args): url for url in urls}
-        for future in as_completed(futures): update_status()
-    print(f"\n\n{Fore.GREEN}--- GOD-FATHER HUNTING COMPLETE")
+    else:
+        try:
+            with open(args.input, 'r', encoding='utf-8', errors='ignore') as f:
+                urls = list(set(line.strip() for line in f if line.strip()))
+            
+            stats["total"] = len(urls)
+            with ThreadPoolExecutor(max_workers=args.threads) as executor:
+                futures = {executor.submit(process_url, url, args): url for url in urls}
+                for future in as_completed(futures): update_status()
+            
+            print(f"\n\n{Fore.GREEN}--- GOD-FATHER HUNTING COMPLETE")
+
+        except Exception as e:
+            print(f"{Fore.RED}[!] Error: {str(e)}")
+            sys.exit(1)
 
 if __name__ == "__main__":
     try: main()
