@@ -22,7 +22,7 @@ Clone the repository and install the necessary dependencies:
 `cd THE_GOD_FATHER`
 
 
-`pip3 install -r requirements.txt`
+`pip3 install -r requirements.txt --break-system-packages`
 
 📖 USAGE
 
