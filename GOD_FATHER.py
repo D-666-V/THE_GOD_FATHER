@@ -249,7 +249,7 @@ def main():
                 futures = {executor.submit(process_url, url, args): url for url in urls}
                 for future in as_completed(futures): update_status()
             
-            print(f"\n\n{Fore.GREEN}--- GOD-FATHER HUNTING COMPLETE")
+            print(f"\n\n{Fore.GREEN} GOD-FATHER HUNTING COMPLETE")
 
         except Exception as e:
             print(f"{Fore.RED}[!] Error: {str(e)}")
