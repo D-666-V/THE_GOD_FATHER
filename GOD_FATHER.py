@@ -41,7 +41,7 @@ def print_banner():
 {Fore.RED}    ╚██████╔╝╚██████╔╝██████╔╝██║      ██║  ██║   ██║   ██║  ██║███████╗██║  ██║
 {Fore.WHITE}    -----------------------------------------------------------------------
 {Fore.YELLOW}      SENSITIVE DATA CAN HIDE, BUT IT CAN'T ESCAPE THE GODFATHER.
-{Fore.CYAN}                 MADE BY FATHER | GOD-FATHER V16.0
+{Fore.CYAN}                 MADE BY DHARMVEER | GOD-FATHER V16.0
     """
     print(banner)
 
