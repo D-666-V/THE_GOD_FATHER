@@ -45,6 +45,23 @@ def print_banner():
     """
     print(banner)
 
+# Raw Update Logic - No filters, No auto-patch. Jo GitHub pe hai wahi aayega.
+def update_script():
+    repo_url = "https://raw.githubusercontent.com/D-666-V/THE_GOD_FATHER/main/GOD_FATHER.py"
+    print(f"{Fore.YELLOW}[*] Checking for updates...")
+    try:
+        response = requests.get(repo_url, timeout=10)
+        if response.status_code == 200:
+            with open(__file__, "wb") as f:
+                f.write(response.content)
+            print(f"{Fore.GREEN}[+] GOD_FATHER.py updated successfully!")
+            sys.exit(0)
+        else:
+            print(f"{Fore.RED}[!] Update failed. Status: {response.status_code}")
+    except Exception as e:
+        print(f"{Fore.RED}[!] Update error: {e}")
+    sys.exit(1)
+
 def update_status():
     perc = (stats['scanned'] / stats['total']) * 100 if stats['total'] > 0 else 0
     status_line = f"\r\033[K{Fore.BLUE}[{stats['scanned']}/{stats['total']}] {perc:.1f}% - {Fore.GREEN}Live:{stats['live']} {Fore.CYAN}EP:{stats['ep']} {Fore.RED}KY:{stats['ky']} {Fore.MAGENTA}OR:{stats['or']} {Fore.YELLOW}BP:{stats['bp']} {Fore.GREEN}SF:{stats['sf']}"
@@ -207,16 +224,19 @@ def main():
     parser.add_argument("-sf", action="store_true")
     parser.add_argument("-poc", action="store_true")
     parser.add_argument("-all", action="store_true")
+    parser.add_argument("-up", "--update", action="store_true") # Naya Update Arg
     parser.add_argument("-h", "--help", action="store_true")
 
     args = parser.parse_args()
 
-    # Pehle Banner sirf ek baar
+    if args.update:
+        update_script()
+
     print_banner()
 
     if args.help or not args.input:
         help_menu = f"""
-{Fore.RED}{Style.BRIGHT}USAGE: python3 test.py -i <urls.txt> [OPTIONS]
+{Fore.RED}{Style.BRIGHT}USAGE: python3 GOD_FATHER.py -i <urls.txt> [OPTIONS]
 
 {Fore.RED}{Style.BRIGHT}CORE ARGUMENTS:
   {Fore.WHITE}-i, --input    {Fore.YELLOW}Input file containing URLs (Required)
@@ -225,16 +245,17 @@ def main():
   {Fore.WHITE}-d, --domain   {Fore.YELLOW}Filter by domain name
 
 {Fore.RED}{Style.BRIGHT}MODULES:
-  {Fore.WHITE}-v             {Fore.CYAN}Verify Live 200 OK Targets
-  {Fore.WHITE}-ky            {Fore.CYAN}Scan for API Keys (AWS, Google, etc.)
-  {Fore.WHITE}-ep            {Fore.CYAN}Extract Sensitive Endpoints & Admin Paths
-  {Fore.WHITE}-bp            {Fore.CYAN}Auto-Bypass 403/401 Restricted Pages
-  {Fore.WHITE}-sf            {Fore.CYAN}Fuzz for Sensitive Files (.env, .git, etc.)
-  {Fore.WHITE}-poc           {Fore.CYAN}Run Open Redirect POC Tests
-  {Fore.WHITE}-all           {Fore.GREEN}{Style.BRIGHT}Run All Modules (The Godfather Mode)
+  {Fore.WHITE}-v              {Fore.CYAN}Verify Live 200 OK Targets
+  {Fore.WHITE}-ky             {Fore.CYAN}Scan for API Keys (AWS, Google, etc.)
+  {Fore.WHITE}-ep             {Fore.CYAN}Extract Sensitive Endpoints & Admin Paths
+  {Fore.WHITE}-bp             {Fore.CYAN}Auto-Bypass 403/401 Restricted Pages
+  {Fore.WHITE}-sf             {Fore.CYAN}Fuzz for Sensitive Files (.env, .git, etc.)
+  {Fore.WHITE}-poc            {Fore.CYAN}Run Open Redirect POC Tests
+  {Fore.WHITE}-all            {Fore.GREEN}{Style.BRIGHT}Run All Modules (The Godfather Mode)
 
 {Fore.RED}{Style.BRIGHT}MISC:
-  {Fore.WHITE}-h, --help     {Fore.YELLOW}Show this stylish help menu
+  {Fore.WHITE}-up, --update   {Fore.MAGENTA}Update the script to the latest version
+  {Fore.WHITE}-h, --help      {Fore.YELLOW}Show this stylish help menu
         """
         print(help_menu)
         sys.exit(0)
@@ -256,5 +277,7 @@ def main():
             sys.exit(1)
 
 if __name__ == "__main__":
-    try: main()
-    except KeyboardInterrupt: sys.exit(0)
+    try:
+        main()
+    except KeyboardInterrupt:
+        sys.exit(0)
