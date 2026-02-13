@@ -45,7 +45,7 @@ def print_banner():
     """
     print(banner)
 
-# Raw Update Logic - No filters, No auto-patch. Jo GitHub pe hai wahi aayega.
+
 def update_script():
     repo_url = "https://raw.githubusercontent.com/D-666-V/THE_GOD_FATHER/main/GOD_FATHER.py"
     print(f"{Fore.YELLOW}[*] Checking for updates...")
@@ -224,7 +224,7 @@ def main():
     parser.add_argument("-sf", action="store_true")
     parser.add_argument("-poc", action="store_true")
     parser.add_argument("-all", action="store_true")
-    parser.add_argument("-up", "--update", action="store_true") # Naya Update Arg
+    parser.add_argument("-up", "--update", action="store_true") 
     parser.add_argument("-h", "--help", action="store_true")
 
     args = parser.parse_args()
