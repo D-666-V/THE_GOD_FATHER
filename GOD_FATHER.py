@@ -42,7 +42,7 @@ def print_banner():
  ████████▀   ▀██████▀  ████████▀   ███        ███    █▀      ███     ███    █▀  ████████  ███    █▀  
 
 {Fore.RED}══════════════════════════════════════════════════════════════════════════════════════════════════
-{Fore.RED}{Style.BRIGHT}   [!] SENSITIVE DATA CAN HIDE, BUT IT CAN'T ESCAPE THE GODFATHER.
+{Fore.RED}{Style.BRIGHT}   [!] SENSITIVE DATA CAN HIDE, BUT IT CAN'T ESCAPE THE FATHER.
 {Fore.RED}══════════════════════════════════════════════════════════════════════════════════════════════════
 
 {Fore.RED}   {Fore.WHITE}»{Fore.RED} SECRETS WILL BE EXTRACTED           {Fore.WHITE}AUTHOR  :{Fore.RED} DHARMVEER
