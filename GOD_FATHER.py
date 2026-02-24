@@ -33,13 +33,13 @@ BYPASS_HEADERS = [
 
 def print_banner():
     b = f"""{Fore.RED}{Style.BRIGHT}
-  ▄██████▄   ▄██████▄  ████████▄   ▄████████  ▄██████▄    ██████████  ███    █▄  ████████  ████████▄ 
- ███    ███ ███    ███ ███    ███  ███        ███    ███      ███     ███    ███ ███       ███   ▀███
- ███    █▀  ███    ███ ███    ███  ███        ███    ███      ███     ███    ███ ███       ███    ███
- ███        ███    ███ ███    ███ ▄███▄▄▄     ███▄▄▄▄███      ███     ███▄▄▄▄███ ███▄▄▄    ████████▀ 
- ███    ███ ███    ███ ███    ███ ▀███▀▀▀     ███▀▀▀▀███      ███     ███▀▀▀▀███ ███▀▀▀    ███  ▀███ 
- ███    ██  ███    ███ ███    ███  ███        ███    ███      ███     ███    ███ ███       ███    ███
- ████████▀   ▀██████▀  ████████▀   ███        ███    █▀       ███     ███    █▀  ████████  ███    █▀  
+  ▄██████▄   ▄██████▄  ████████▄   ▄████████  ▄██████▄     ██████████  ███    █▄  ████████  ████████▄ 
+ ███    ███ ███    ███ ███    ███  ███        ███    ███       ███     ███    ███ ███       ███   ▀███
+ ███    █▀  ███    ███ ███    ███  ███        ███    ███       ███     ███    ███ ███       ███    ███
+ ███        ███    ███ ███    ███ ▄███▄▄▄     ███▄▄▄▄███       ███     ███▄▄▄▄███ ███▄▄▄    ████████▀ 
+ ███    ███ ███    ███ ███    ███ ▀███▀▀▀     ███▀▀▀▀███       ███     ███▀▀▀▀███ ███▀▀▀    ███  ▀███ 
+ ███    ██  ███    ███ ███    ███  ███        ███    ███       ███     ███    ███ ███       ███    ███
+ ████████▀   ▀██████▀  ████████▀   ███        ███    █▀        ███     ███    █▀  ████████  ███    █▀  
 
 {Fore.RED}══════════════════════════════════════════════════════════════════════════════════════════════════
 {Fore.RED}{Style.BRIGHT}   [!] SENSITIVE DATA CAN HIDE, BUT IT CAN'T ESCAPE THE FATHER.
@@ -58,22 +58,30 @@ def print_banner():
 def update_script():
     repo_url = "https://raw.githubusercontent.com/D-666-V/THE_GOD_FATHER/main/GOD_FATHER.py"
     cache_bypass_url = f"{repo_url}?v={uuid.uuid4().hex}"
-    print(f"{Fore.YELLOW}[*] Checking for updates...")
+    print(f"{Fore.YELLOW}[*] Force fetching latest version from GitHub...")
+    
+    headers = {
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+        'User-Agent': f'Mozilla/5.0 (GF-{uuid.uuid4().hex[:4]})'
+    }
+    
     try:
-        response = requests.get(cache_bypass_url, timeout=10)
+        response = requests.get(cache_bypass_url, headers=headers, timeout=15)
         if response.status_code == 200:
             new_content = response.content
             if len(new_content) > 1000:
                 with open(__file__, "wb") as f:
                     f.write(new_content)
-                print(f"{Fore.GREEN}[+] GOD_FATHER.py updated successfully! Please restart.")
+                print(f"{Fore.GREEN}[+] Success! Script updated with fresh data.")
+                print(f"{Fore.CYAN}[!] Run the tool again to see changes.")
                 sys.exit(0)
             else:
-                print(f"{Fore.RED}[!] Update failed: Invalid file content received.")
+                print(f"{Fore.RED}[!] Update error: Received file is too small/empty.")
         else:
-            print(f"{Fore.RED}[!] Update failed. Status: {response.status_code}")
+            print(f"{Fore.RED}[!] Update failed. Status Code: {response.status_code}")
     except Exception as e:
-        print(f"{Fore.RED}[!] Update error: {e}")
+        print(f"{Fore.RED}[!] Error during update: {e}")
     sys.exit(1)
 
 def update_status():
@@ -191,100 +199,4 @@ def process_url(url, args):
     try:
         if args.sf or args.all:
             parsed = urlparse(url)
-            base = f"{parsed.scheme}://{parsed.netloc}"
-            fuzz_p = {
-                '.env': ['DB_HOST=', 'AWS_ACCESS_KEY', 'DB_PASSWORD=', 'APP_KEY='],
-                '.git/config': ['[core]', 'repositoryformatversion'],
-                'phpinfo.php': ['php version', 'system', 'build date'],
-                'config.json': ['{', '"'],
-                'backup.sql': ['insert into', 'create table'],
-                'Dockerfile': ['from ', 'run ', 'expose ']
-            }
-            for sf_p, sigs in fuzz_p.items():
-                f_url = f"{base.rstrip('/')}/{sf_p.lstrip('/')}"
-                if f_url in processed_urls: continue
-                processed_urls.add(f_url)
-                try:
-                    sr = session.get(f_url, timeout=4, verify=False, allow_redirects=False)
-                    if sr.status_code == 200:
-                        c_text = sr.text.lower()
-                        c_type = sr.headers.get('Content-Type', '').lower()
-                        if "html" not in c_type and any(s.lower() in c_text for s in sigs):
-                            if len(sr.content) > 10:
-                                log_result("SENS-FILE", f_url, url, Fore.GREEN + Style.BRIGHT)
-                                save_to_file(args.output, "SENSITIVE-FILE", f_url, "Verified-Hit")
-                except: pass
-
-        if args.poc or args.all: test_or_poc(url, args.output)
-        r = session.get(url, timeout=5, verify=False, headers={'User-Agent': 'Mozilla/5.0'})
-        if r.status_code == 200:
-            if args.verify:
-                with p_lock: stats["live"] += 1
-            scan_logic(r.text, url, args.output, args)
-        elif r.status_code in [401, 403] and (args.bp or args.all):
-            try_bypass(url, args.output)
-    except: pass
-    with p_lock: stats["scanned"] += 1
-    update_status()
-
-def main():
-    parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument("-i", "--input")
-    parser.add_argument("-t", "--threads", type=int, default=150)
-    parser.add_argument("-o", "--output", default=None) 
-    parser.add_argument("-d", "--domain")
-    parser.add_argument("-v", "--verify", action="store_true")
-    parser.add_argument("-ky", action="store_true")
-    parser.add_argument("-ep", action="store_true")
-    parser.add_argument("-bp", action="store_true")
-    parser.add_argument("-sf", action="store_true")
-    parser.add_argument("-poc", action="store_true")
-    parser.add_argument("-all", action="store_true")
-    parser.add_argument("-up", "--update", action="store_true") 
-    parser.add_argument("-h", "--help", action="store_true")
-    args = parser.parse_args()
-    if args.update: update_script()
-    print_banner()
-    if args.help or not args.input:
-        help_menu = f"""
-{Fore.RED}{Style.BRIGHT}USAGE: python3 GOD_FATHER.py -i <urls.txt> [OPTIONS]
-
-{Fore.RED}{Style.BRIGHT}CORE ARGUMENTS:
-  {Fore.WHITE}-i, --input    {Fore.YELLOW}Input file containing URLs (Required)
-  {Fore.WHITE}-t, --threads  {Fore.YELLOW}Number of threads (Default: 150)
-  {Fore.WHITE}-o, --output   {Fore.YELLOW}Save results to file (Optional)
-  {Fore.WHITE}-d, --domain   {Fore.YELLOW}Filter by domain name
-
-{Fore.RED}{Style.BRIGHT}MODULES:
-  {Fore.WHITE}-v              {Fore.CYAN}Verify Live 200 OK Targets
-  {Fore.WHITE}-ky             {Fore.CYAN}Scan for API Keys (AWS, Google, etc.)
-  {Fore.WHITE}-ep             {Fore.CYAN}Extract Sensitive Endpoints & Admin Paths
-  {Fore.WHITE}-bp             {Fore.CYAN}Auto-Bypass 403/401 Restricted Pages
-  {Fore.WHITE}-sf             {Fore.CYAN}Fuzz for Sensitive Files (.env, .git, etc.)
-  {Fore.WHITE}-poc            {Fore.CYAN}Run Open Redirect POC Tests
-  {Fore.WHITE}-all            {Fore.GREEN}{Style.BRIGHT}Run All Modules (The Godfather Mode)
-
-{Fore.RED}{Style.BRIGHT}MISC:
-  {Fore.WHITE}-up, --update   {Fore.MAGENTA}Update the script to the latest version
-  {Fore.WHITE}-h, --help      {Fore.YELLOW}Show this stylish help menu
-        """
-        print(help_menu)
-        sys.exit(0)
-    try:
-        with open(args.input, 'r', encoding='utf-8', errors='ignore') as f:
-            urls = list(set(line.strip() for line in f if line.strip()))
-        stats["total"] = len(urls)
-        update_status()
-        with ThreadPoolExecutor(max_workers=args.threads) as executor:
-            futures = [executor.submit(process_url, url, args) for url in urls]
-            for future in as_completed(futures): pass
-        print(f"\n\n{Fore.GREEN} GOD-FATHER HUNTING COMPLETE")
-    except Exception as e:
-        print(f"{Fore.RED}[!] Error: {str(e)}")
-        sys.exit(1)
-
-if __name__ == "__main__":
-    try:
-        main()
-    except KeyboardInterrupt:
-        sys.exit(0)
+            base = f"{parsed.scheme}://{parsed.
