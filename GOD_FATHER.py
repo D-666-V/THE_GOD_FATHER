@@ -90,7 +90,11 @@ def update_script():
                     except: pass
             
             print(f"{Fore.GREEN}[!] GOD-FATHER is now fresh. Restarting...")
-            os.execv(sys.executable, ['python3'] + sys.argv)
+            
+            # Restart logic fix: remove update flags to stop the loop
+            clean_args = [a for a in sys.argv if a not in ['-up', '--update']]
+            os.execv(sys.executable, [sys.executable] + clean_args)
+            
         else:
             print(f"{Fore.RED}[!] Update failed. Status: {resp.status_code}")
     except Exception as e:
