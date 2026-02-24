@@ -39,7 +39,7 @@ Target Secrets specifically
 
 📊 PROOF OF WORK
 
-<p align="center"> <img src="https://github.com/user-attachments/assets/f4ed863c-c9b0-4c7a-8500-46856b56e9d8" width="900" alt="GodFather Recon Tool Findings"> </p>
+<p align="center"> <img src="https://github.com/user-attachments/assets/ae01aab1-2360-44c1-abb9-4fd4f5f521a4" width="900" alt="GodFather Recon Tool Findings"> </p>
 
     Note: Successfully capturing live findings on major targets like Adidas, Snyk, and Fireblocks.
 
