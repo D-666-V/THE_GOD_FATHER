@@ -33,78 +33,68 @@ BYPASS_HEADERS = [
     {'X-Remote-IP': '127.0.0.1'}, {'X-Custom-IP-Authorization': '127.0.0.1'}
 ]
 
-def print_banner():
-    b = f"""{Fore.RED}{Style.BRIGHT}
-  ▄██████▄   ▄██████▄  ████████▄   ▄████████  ▄██████▄    ██████████  ███    █▄  ████████  ████████▄ 
- ███    ███ ███    ███ ███    ███  ███        ███    ███      ███     ███    ███ ███       ███   ▀███
- ███    █▀  ███    ███ ███    ███  ███        ███    ███      ███     ███    ███ ███       ███    ███
- ███        ███    ███ ███    ███ ▄███▄▄▄     ███▄▄▄▄███      ███     ███▄▄▄▄███ ███▄▄▄    ████████▀ 
- ███    ███ ███    ███ ███    ███ ▀███▀▀▀     ███▀▀▀▀███      ███     ███▀▀▀▀███ ███▀▀▀    ███  ▀███ 
- ███    ██  ███    ███ ███    ███  ███        ███    ███      ███     ███    ███ ███       ███    ███
- ████████▀   ▀██████▀  ████████▀   ███        ███    █▀       ███     ███    █▀  ████████  ███    █▀  
+def get_line(char="─"):
+    try:
+        columns = os.get_terminal_size().columns
+    except:
+        columns = 80
+    return f"{Fore.RED}{char * columns}"
 
-{Fore.RED}══════════════════════════════════════════════════════════════════════════════════════════════════
+def print_banner():
+    line = get_line("═")
+    b = f"""{Fore.RED}{Style.BRIGHT}
+  ▄██████▄   ▄██████▄  ████████▄   ▄████████  ▄██████▄  ██████████  ███    █▄  ███████   ████████▄ 
+ ███    ███ ███    ███ ███    ███  ███        ███   ███     ███     ███    ███ ███       ███   ▀███
+ ███    █▀  ███    ███ ███    ███  ███        ███   ███     ███     ███    ███ ███       ███    ███
+ ███        ███    ███ ███    ███ ▄███▄▄▄     ███▄▄▄███     ███     ███▄▄▄▄███ ███▄▄▄    ████████▀ 
+ ███    ███ ███    ███ ███    ███ ▀███▀▀▀     ███▀▀▀███     ███     ███▀▀▀▀███ ███▀▀▀    ███  ▀███ 
+ ███    ██  ███    ███ ███    ███  ███        ███   ███     ███     ███    ███ ███       ███    ███
+ ████████▀   ▀██████▀  ████████▀   ███        ███   ███     ███     ███    █▀  ███████   ███    █▀  
+
+{line}
 {Fore.RED}{Style.BRIGHT}   [!] SENSITIVE DATA CAN HIDE, BUT IT CAN'T ESCAPE THE FATHER.
-{Fore.RED}══════════════════════════════════════════════════════════════════════════════════════════════════
+{line}
 
 {Fore.RED}   {Fore.WHITE}»{Fore.RED} SECRETS WILL BE EXTRACTED            {Fore.WHITE}AUTHOR  :{Fore.RED} DHARMVEER
 {Fore.RED}   {Fore.WHITE}»{Fore.RED} MISCONFIGURATIONS WILL BE EXPLOITED {Fore.WHITE}VERSION :{Fore.RED} GOD-FATHER v17.0
 {Fore.RED}   {Fore.WHITE}»{Fore.RED} SILENCE WILL NOT SAVE YOU            {Fore.WHITE}MODE    :{Fore.RED} NO RULES • NO MERCY
 
-{Fore.RED}────────────────────────────────────────
+{Fore.RED}{"─" * 40}
 {Fore.RED}   STATUS : {Fore.GREEN}ACTIVE HUNTING {Fore.RED}──► {Fore.WHITE}TARGETS WILL BLEED DATA
-{Fore.RED}══════════════════════════════════════════════════════════════════════════════════════════════════
+{line}
 {Style.RESET_ALL}"""
     print(b)
 
 def update_script():
-    # Random ID generator for extreme cache busting
-    random_id = uuid.uuid4().hex[:10]
     repo_raw = "https://raw.githubusercontent.com/D-666-V/THE_GOD_FATHER/main/GOD_FATHER.py"
-    cache_bypass_url = f"{repo_raw}?v={random_id}&t={int(time.time())}"
-    
-    print(f"{Fore.YELLOW}[*] Force fetching fresh build from GitHub (Bypassing CDN)...")
-    
+    cache_bypass_url = f"{repo_raw}?nocache={int(time.time())}"
+    print(f"{Fore.YELLOW}[*] Bypassing GitHub cache and fetching latest version...")
     headers = {
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         'Pragma': 'no-cache',
         'Expires': '0',
-        'User-Agent': f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) {random_id}'
+        'User-Agent': f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) {uuid.uuid4().hex[:6]}'
     }
-    
     try:
-        # Session use nahi karenge yaha taaki purani settings interfere na karein
         resp = requests.get(cache_bypass_url, headers=headers, timeout=20)
         if resp.status_code == 200:
             new_code = resp.text
-            
-            # Agar file empty ya bohot choti hai toh update mat karna
-            if len(new_code) < 500:
-                print(f"{Fore.RED}[!] Error: Received invalid/empty file from GitHub.")
-                sys.exit(1)
-
-            with open(__file__, "w", encoding='utf-8') as f:
-                f.write(new_code)
-            
-            print(f"{Fore.GREEN}[+] GOD-FATHER updated to latest version successfully!")
-            
-            # Dependency check
             new_imports = re.findall(r'^(?:import|from)\s+([a-zA-Z0-9_]+)', new_code, re.M)
             current_modules = sys.modules.keys()
+            with open(__file__, "w", encoding='utf-8') as f:
+                f.write(new_code)
+            print(f"{Fore.GREEN}[+] Code updated successfully!")
             for mod in set(new_imports):
                 if mod not in current_modules and mod not in sys.builtin_module_names:
                     try:
+                        print(f"{Fore.CYAN}[*] Installing new dependency: {mod}...")
                         subprocess.check_call([sys.executable, "-m", "pip", "install", mod], stdout=subprocess.DEVNULL)
                     except: pass
-            
-            print(f"{Fore.GREEN}[!] Restarting with fresh code...")
-            
-            # Restart without -up flag
+            print(f"{Fore.GREEN}[!] GOD-FATHER is now fresh. Restarting...")
             clean_args = [a for a in sys.argv if a not in ['-up', '--update']]
             os.execv(sys.executable, [sys.executable] + clean_args)
-            
         else:
-            print(f"{Fore.RED}[!] Update failed. GitHub Status: {resp.status_code}")
+            print(f"{Fore.RED}[!] Update failed. Status: {resp.status_code}")
     except Exception as e:
         print(f"{Fore.RED}[!] Update error: {e}")
     sys.exit(1)
@@ -123,7 +113,6 @@ def log_result(label, value, source_url, color=Fore.WHITE, is_vuln=False):
         elif "BP" in label: stats["bp"] += 1
         elif "SENS-FILE" in label: stats["sf"] += 1
         elif any(k in label for k in ["KEY", "TOKEN"]): stats["ky"] += 1
-        
         sys.stdout.write("\r\033[K")
         if is_vuln:
             output = f"{Fore.MAGENTA}!!! [VULNERABLE-{label}] {value} !!!"
@@ -202,7 +191,6 @@ def scan_logic(content, source_url, output_file, args):
             color = Fore.CYAN + Style.BRIGHT if is_gold else Fore.CYAN
             log_result(label, val, source_url, color)
             save_to_file(output_file, label, val, source_url)
-            
     if args.ky or args.all:
         patterns = {
             "GOOGLE_KEY": r'\bAIza[0-9A-Za-z\-_]{35}\b',
@@ -247,7 +235,6 @@ def process_url(url, args):
                                 log_result("SENS-FILE", f_url, url, Fore.GREEN + Style.BRIGHT)
                                 save_to_file(args.output, "SENSITIVE-FILE", f_url, "Verified-Hit")
                 except: pass
-
         if args.poc or args.all: test_or_poc(url, args.output)
         r = session.get(url, timeout=5, verify=False, headers={'User-Agent': 'Mozilla/5.0'})
         if r.status_code == 200:
@@ -276,30 +263,38 @@ def main():
     parser.add_argument("-up", "--update", action="store_true") 
     parser.add_argument("-h", "--help", action="store_true")
     args = parser.parse_args()
+
     if args.update: update_script()
     print_banner()
+
     if args.help or not args.input:
+        line = get_line()
         help_menu = f"""
-{Fore.RED}{Style.BRIGHT}USAGE: python3 GOD_FATHER.py -i <urls.txt> [OPTIONS]
+{Fore.RED}💀 {Style.BRIGHT}COMMAND CENTER : THE RULES OF WAR
+{line}
+{Fore.WHITE}USAGE: {Fore.GREEN}python3 {os.path.basename(__file__)} -i <targets.txt> [COMMANDS]
 
-{Fore.RED}{Style.BRIGHT}CORE ARGUMENTS:
-  {Fore.WHITE}-i, --input    {Fore.YELLOW}Input file containing URLs (Required)
-  {Fore.WHITE}-t, --threads  {Fore.YELLOW}Number of threads (Default: 150)
-  {Fore.WHITE}-o, --output   {Fore.YELLOW}Save results to file (Optional)
-  {Fore.WHITE}-d, --domain   {Fore.YELLOW}Filter by domain name
+{Fore.RED}[ TARGET ACQUISITION ]
+  {Fore.WHITE}-i, --input     {Fore.YELLOW}» {Fore.WHITE}Target list to bleed (Required)
+  {Fore.WHITE}-t, --threads   {Fore.YELLOW}» {Fore.WHITE}Attack speed (Default: 150)
+  {Fore.WHITE}-o, --output    {Fore.YELLOW}» {Fore.WHITE}Loot storage file (Optional)
+  {Fore.WHITE}-d, --domain    {Fore.YELLOW}» {Fore.WHITE}Focus on a specific bloodline (Domain)
 
-{Fore.RED}{Style.BRIGHT}MODULES:
-  {Fore.WHITE}-v              {Fore.CYAN}Verify Live 200 OK Targets
-  {Fore.WHITE}-ky             {Fore.CYAN}Scan for API Keys (AWS, Google, etc.)
-  {Fore.WHITE}-ep             {Fore.CYAN}Extract Sensitive Endpoints & Admin Paths
-  {Fore.WHITE}-bp             {Fore.CYAN}Auto-Bypass 403/401 Restricted Pages
-  {Fore.WHITE}-sf             {Fore.CYAN}Fuzz for Sensitive Files (.env, .git, etc.)
-  {Fore.WHITE}-poc            {Fore.CYAN}Run Open Redirect POC Tests
-  {Fore.WHITE}-all            {Fore.GREEN}{Style.BRIGHT}Run All Modules (The Godfather Mode)
+{Fore.RED}[ WEAPON SYSTEMS ]
+  {Fore.WHITE}-v              {Fore.CYAN}» {Fore.WHITE}SOUL SCAN       {Fore.YELLOW}| {Fore.CYAN}Verify 200 OK Live targets
+  {Fore.WHITE}-ky             {Fore.CYAN}» {Fore.WHITE}KEY EXTRACTOR   {Fore.YELLOW}| {Fore.CYAN}Rip out API Keys (AWS, Google, etc.)
+  {Fore.WHITE}-ep             {Fore.CYAN}» {Fore.WHITE}VEIN FINDER     {Fore.YELLOW}| {Fore.CYAN}Deep Endpoint & Admin path mining
+  {Fore.WHITE}-bp             {Fore.CYAN}» {Fore.WHITE}GATE CRASHER    {Fore.YELLOW}| {Fore.CYAN}Forced bypass for 403/401 walls
+  {Fore.WHITE}-sf             {Fore.CYAN}» {Fore.WHITE}FILE HUNTER     {Fore.YELLOW}| {Fore.CYAN}Fuzz for .env, .git, and secrets
+  {Fore.WHITE}-poc            {Fore.CYAN}» {Fore.WHITE}REDIRECT POISON {Fore.YELLOW}| {Fore.CYAN}Execute Open Redirect POCs
+  {Fore.WHITE}-all            {Fore.GREEN}» {Fore.WHITE}GODFATHER MODE  {Fore.YELLOW}| {Fore.GREEN}TOTAL ANNIHILATION (All Modules)
 
-{Fore.RED}{Style.BRIGHT}MISC:
-  {Fore.WHITE}-up, --update   {Fore.MAGENTA}Update the script to the latest version
-  {Fore.WHITE}-h, --help      {Fore.YELLOW}Show this stylish help menu
+{Fore.RED}[ UTILITIES ]
+  {Fore.WHITE}-up, --update   {Fore.MAGENTA}» {Fore.WHITE}Reforge the blade (Fetch latest build)
+  {Fore.WHITE}-h, --help      {Fore.MAGENTA}» {Fore.WHITE}Show this manual of destruction
+
+{line}
+{Fore.RED} [!] {Fore.WHITE}WARNING: DATA IS FRAGILE. THE FATHER IS NOT.
         """
         print(help_menu)
         sys.exit(0)
@@ -317,7 +312,5 @@ def main():
         sys.exit(1)
 
 if __name__ == "__main__":
-    try:
-        main()
-    except KeyboardInterrupt:
-        sys.exit(0)
+    try: main()
+    except KeyboardInterrupt: sys.exit(0)
