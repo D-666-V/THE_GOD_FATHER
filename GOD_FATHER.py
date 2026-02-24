@@ -59,13 +59,11 @@ def update_script():
     repo_url = "https://raw.githubusercontent.com/D-666-V/THE_GOD_FATHER/main/GOD_FATHER.py"
     cache_bypass_url = f"{repo_url}?v={uuid.uuid4().hex}"
     print(f"{Fore.YELLOW}[*] Force fetching latest version from GitHub...")
-    
     headers = {
         'Cache-Control': 'no-cache',
         'Pragma': 'no-cache',
         'User-Agent': f'Mozilla/5.0 (GF-{uuid.uuid4().hex[:4]})'
     }
-    
     try:
         response = requests.get(cache_bypass_url, headers=headers, timeout=15)
         if response.status_code == 200:
@@ -74,10 +72,9 @@ def update_script():
                 with open(__file__, "wb") as f:
                     f.write(new_content)
                 print(f"{Fore.GREEN}[+] Success! Script updated with fresh data.")
-                print(f"{Fore.CYAN}[!] Run the tool again to see changes.")
                 sys.exit(0)
             else:
-                print(f"{Fore.RED}[!] Update error: Received file is too small/empty.")
+                print(f"{Fore.RED}[!] Update error: Received file is too small.")
         else:
             print(f"{Fore.RED}[!] Update failed. Status Code: {response.status_code}")
     except Exception as e:
@@ -98,7 +95,6 @@ def log_result(label, value, source_url, color=Fore.WHITE, is_vuln=False):
         elif "BP" in label: stats["bp"] += 1
         elif "SENS-FILE" in label: stats["sf"] += 1
         elif any(k in label for k in ["KEY", "TOKEN"]): stats["ky"] += 1
-        
         sys.stdout.write("\r\033[K")
         if is_vuln:
             output = f"{Fore.MAGENTA}!!! [VULNERABLE-{label}] {value} !!!"
@@ -149,9 +145,8 @@ def try_bypass(url, output_file):
                     r = session.get(f_path, headers=header, timeout=4, verify=False, allow_redirects=False)
                     if r.status_code == 200 and len(r.content) != orig_size and len(r.content) > 100:
                         low_content = r.text.lower()
-                        bad_keywords = ["access denied", "forbidden", "unauthorized", "login", "signin"]
-                        if not any(word in low_content for word in bad_keywords):
-                            log_result("BP-SUCCESS", f"{f_path} (Header: {list(header.keys())[0]})", url, Fore.YELLOW + Style.BRIGHT)
+                        if not any(word in low_content for word in ["access denied", "forbidden", "unauthorized"]):
+                            log_result("BP-SUCCESS", f"{f_path}", url, Fore.YELLOW + Style.BRIGHT)
                             save_to_file(output_file, "BYPASS-SUCCESS", f_path, f"Header: {list(header.keys())[0]}")
                             return True
                 except: pass
@@ -163,35 +158,22 @@ def scan_logic(content, source_url, output_file, args):
         ep_pat = r'["\'](/(?:api|v[0-9]|v3|graphql|admin|auth|config|internal|web-api|rest|hidden|debug|v4)/[a-zA-Z0-9\-_/.]+)["\']|["\'](https?://[a-zA-Z0-9.\-_/]+(?:api|v[0-9]|v3|graphql|internal|debug|v4)[a-zA-Z0-9.\-_/]*)["\']'
         for match in re.findall(ep_pat, content):
             val = match[0] if match[0] else match[1]
-            val_lower = val.lower()
-            media_exts = ('.jpg', '.jpeg', '.png', '.gif', '.svg', '.pdf', '.woff', '.woff2', '.ttf', '.eot', '.mp4', '.css', '.ico', '.js', '.map', '.txt', '.zip')
-            junk_paths = ('/uploads/', '/assets/', '/static/', '/media/', '/images/', 'google-analytics', 'twitter.com', 'facebook.com', 'fonts.', 'cloudinary.', 'instagram.')
-            if not val or any(val_lower.endswith(ext) for ext in media_exts) or any(jp in val_lower for jp in junk_paths):
-                continue
+            if not val or any(val.lower().endswith(ext) for ext in ('.jpg', '.png', '.css', '.js', '.ico')): continue
             path_sig = re.sub(r'/\d+', '/{ID}', val)
             if path_sig in seen_paths: continue
             seen_paths.add(path_sig)
-            gold_keys = ['admin', 'config', 'internal', 'env', 'secret', 'auth', 'setup', 'db', 'sql', 'debug', 'monitor', 'backup', 'vault', 'login', 'signin', 'logout']
-            is_gold = any(gk in val_lower for gk in gold_keys)
+            is_gold = any(gk in val.lower() for gk in ['admin', 'config', 'internal', 'env', 'secret', 'auth'])
             label = "GOLDMINE-EP" if is_gold else "ENDPOINT"
-            color = Fore.CYAN + Style.BRIGHT if is_gold else Fore.CYAN
-            log_result(label, val, source_url, color)
+            log_result(label, val, source_url, Fore.CYAN + Style.BRIGHT if is_gold else Fore.CYAN)
             save_to_file(output_file, label, val, source_url)
-            
     if args.ky or args.all:
-        patterns = {
-            "GOOGLE_KEY": r'\bAIza[0-9A-Za-z\-_]{35}\b',
-            "AWS_ACCESS_KEY": r'\b(?:AKIA|ASIA)[0-9A-Z]{16}\b',
-            "SLACK_TOKEN": r'\bxox[baprs]-[0-9a-zA-Z]{10,48}\b'
-        }
+        patterns = {"GOOGLE_KEY": r'\bAIza[0-9A-Za-z\-_]{35}\b', "AWS_KEY": r'\b(?:AKIA|ASIA)[0-9A-Z]{16}\b'}
         for label, pat in patterns.items():
             for m in re.findall(pat, content):
                 if m not in seen_secrets:
-                    if len(set(m)) < 6: continue 
-                    display_msg = f"{m} {Fore.WHITE}at {Fore.BLUE}{source_url}"
-                    log_result(label, display_msg, source_url, Fore.RED + Style.BRIGHT)
+                    log_result(label, m, source_url, Fore.RED + Style.BRIGHT)
                     seen_secrets.add(m)
-                    save_to_file(output_file, label, m, f"Found at: {source_url}")
+                    save_to_file(output_file, label, m, source_url)
 
 def process_url(url, args):
     if url in processed_urls: return
@@ -199,4 +181,62 @@ def process_url(url, args):
     try:
         if args.sf or args.all:
             parsed = urlparse(url)
-            base = f"{parsed.scheme}://{parsed.
+            base = f"{parsed.scheme}://{parsed.netloc}"
+            for sf_p in ['.env', '.git/config', 'phpinfo.php', 'config.json']:
+                f_url = f"{base.rstrip('/')}/{sf_p}"
+                if f_url in processed_urls: continue
+                processed_urls.add(f_url)
+                try:
+                    sr = session.get(f_url, timeout=4, verify=False, allow_redirects=False)
+                    if sr.status_code == 200 and len(sr.content) > 10:
+                        log_result("SENS-FILE", f_url, url, Fore.GREEN + Style.BRIGHT)
+                        save_to_file(args.output, "SENSITIVE-FILE", f_url, "Hit")
+                except: pass
+        if args.poc or args.all: test_or_poc(url, args.output)
+        r = session.get(url, timeout=5, verify=False, headers={'User-Agent': 'Mozilla/5.0'})
+        if r.status_code == 200:
+            if args.verify:
+                with p_lock: stats["live"] += 1
+            scan_logic(r.text, url, args.output, args)
+        elif r.status_code in [401, 403] and (args.bp or args.all):
+            try_bypass(url, args.output)
+    except: pass
+    with p_lock: stats["scanned"] += 1
+    update_status()
+
+def main():
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("-i", "--input")
+    parser.add_argument("-t", "--threads", type=int, default=150)
+    parser.add_argument("-o", "--output", default=None)
+    parser.add_argument("-v", "--verify", action="store_true")
+    parser.add_argument("-ky", action="store_true")
+    parser.add_argument("-ep", action="store_true")
+    parser.add_argument("-bp", action="store_true")
+    parser.add_argument("-sf", action="store_true")
+    parser.add_argument("-poc", action="store_true")
+    parser.add_argument("-all", action="store_true")
+    parser.add_argument("-up", "--update", action="store_true")
+    parser.add_argument("-h", "--help", action="store_true")
+    args = parser.parse_args()
+    if args.update: update_script()
+    print_banner()
+    if args.help or not args.input:
+        print(f"{Fore.RED}USAGE: python3 GOD_FATHER.py -i <urls.txt> -all")
+        sys.exit(0)
+    try:
+        with open(args.input, 'r') as f:
+            urls = list(set(line.strip() for line in f if line.strip()))
+        stats["total"] = len(urls)
+        update_status()
+        with ThreadPoolExecutor(max_workers=args.threads) as executor:
+            list(executor.map(lambda u: process_url(u, args), urls))
+        print(f"\n\n{Fore.GREEN} GOD-FATHER HUNTING COMPLETE")
+    except Exception as e:
+        print(f"\n{Fore.RED}[!] Error: {e}")
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        sys.exit(0)
