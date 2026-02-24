@@ -195,7 +195,9 @@ def scan_logic(content, source_url, output_file, args):
         patterns = {
             "GOOGLE_KEY": r'\bAIza[0-9A-Za-z\-_]{35}\b',
             "AWS_ACCESS_KEY": r'\b(?:AKIA|ASIA)[0-9A-Z]{16}\b',
-            "SLACK_TOKEN": r'\bxox[baprs]-[0-9a-zA-Z]{10,48}\b'
+            "SLACK_TOKEN": r'\bxox[baprs]-[0-9a-zA-Z]{10,48}\b',
+            "GITHUB_TOKEN": r'\b(?:ghp|gho|ghu|ghs|ghr)_[a-zA-Z0-9]{36}\b',
+            "STRIPE_SECRET": r'\bsk_live_[0-9a-zA-Z]{24,}\b'
         }
         for label, pat in patterns.items():
             for m in re.findall(pat, content):
