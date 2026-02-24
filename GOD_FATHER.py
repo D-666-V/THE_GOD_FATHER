@@ -47,7 +47,7 @@ def print_banner():
 {Fore.RED}══════════════════════════════════════════════════════════════════════════════════════════════════
 
 {Fore.RED}   {Fore.WHITE}»{Fore.RED} SECRETS WILL BE EXTRACTED            {Fore.WHITE}AUTHOR  :{Fore.RED} DHARMVEER
-{Fore.RED}   {Fore.WHITE}»{Fore.RED} MISCONFIGURATIONS WILL BE EXPLOITED {Fore.WHITE}VERSION :{Fore.RED} GOD-FATHER v17.0
+{Fore.RED}   {Fore.WHITE}»{Fore.RED} MISCONFIGURATIONS WILL BE EXPLOITED {Fore.WHITE}VERSION :{Fore.RED} GOD-FATHER v16.0
 {Fore.RED}   {Fore.WHITE}»{Fore.RED} SILENCE WILL NOT SAVE YOU            {Fore.WHITE}MODE    :{Fore.RED} NO RULES • NO MERCY
 
 {Fore.RED}────────────────────────────────────────
@@ -57,9 +57,10 @@ def print_banner():
     print(b)
 
 def update_script():
-    repo_url = "https://raw.githubusercontent.com/D-666-V/THE_GOD_FATHER/main/GOD_FATHER.py"
-    cache_bypass_url = f"{repo_url}?t={int(time.time())}"
-    print(f"{Fore.YELLOW}[*] Bypassing cache and fetching latest version from GitHub...")
+    repo_raw = "https://raw.githubusercontent.com/D-666-V/THE_GOD_FATHER/main/GOD_FATHER.py"
+    cache_bypass_url = f"{repo_raw}?nocache={int(time.time())}"
+    
+    print(f"{Fore.YELLOW}[*] Bypassing GitHub cache and fetching latest version...")
     
     headers = {
         'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -69,18 +70,29 @@ def update_script():
     }
     
     try:
-        response = requests.get(cache_bypass_url, headers=headers, timeout=15)
-        if response.status_code == 200:
-            new_content = response.content
-            if len(new_content) > 1000:
-                with open(__file__, "wb") as f:
-                    f.write(new_content)
-                print(f"{Fore.GREEN}[+] GOD_FATHER.py updated successfully from GitHub (Fresh Build)!")
-                sys.exit(0)
-            else:
-                print(f"{Fore.RED}[!] Update failed: Invalid file content received.")
+        resp = requests.get(cache_bypass_url, headers=headers, timeout=20)
+        if resp.status_code == 200:
+            new_code = resp.text
+            
+            new_imports = re.findall(r'^(?:import|from)\s+([a-zA-Z0-9_]+)', new_code, re.M)
+            current_modules = sys.modules.keys()
+            
+            with open(__file__, "w", encoding='utf-8') as f:
+                f.write(new_code)
+            
+            print(f"{Fore.GREEN}[+] Code updated successfully!")
+            
+            for mod in set(new_imports):
+                if mod not in current_modules and mod not in sys.builtin_module_names:
+                    try:
+                        print(f"{Fore.CYAN}[*] Installing new dependency: {mod}...")
+                        subprocess.check_call([sys.executable, "-m", "pip", "install", mod], stdout=subprocess.DEVNULL)
+                    except: pass
+            
+            print(f"{Fore.GREEN}[!] GOD-FATHER is now fresh. Restarting...")
+            os.execv(sys.executable, ['python3'] + sys.argv)
         else:
-            print(f"{Fore.RED}[!] Update failed. Status: {response.status_code}")
+            print(f"{Fore.RED}[!] Update failed. Status: {resp.status_code}")
     except Exception as e:
         print(f"{Fore.RED}[!] Update error: {e}")
     sys.exit(1)
