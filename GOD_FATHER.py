@@ -48,7 +48,7 @@ def print_banner():
 {Fore.RED}══════════════════════════════════════════════════════════════════════════════════════════════════
 
 {Fore.RED}   {Fore.WHITE}»{Fore.RED} SECRETS WILL BE EXTRACTED            {Fore.WHITE}AUTHOR  :{Fore.RED} DHARMVEER
-{Fore.RED}   {Fore.WHITE}»{Fore.RED} MISCONFIGURATIONS WILL BE EXPLOITED {Fore.WHITE}VERSION :{Fore.RED} GOD-FATHER v16.0
+{Fore.RED}   {Fore.WHITE}»{Fore.RED} MISCONFIGURATIONS WILL BE EXPLOITED {Fore.WHITE}VERSION :{Fore.RED} GOD-FATHER v17.0
 {Fore.RED}   {Fore.WHITE}»{Fore.RED} SILENCE WILL NOT SAVE YOU            {Fore.WHITE}MODE    :{Fore.RED} NO RULES • NO MERCY
 
 {Fore.RED}────────────────────────────────────────
