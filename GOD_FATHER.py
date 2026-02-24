@@ -34,20 +34,20 @@ BYPASS_HEADERS = [
 def print_banner():
     b = f"""{Fore.RED}{Style.BRIGHT}
   ▄██████▄   ▄██████▄  ████████▄   ▄████████  ▄██████▄  ██████████  ███    █▄  ████████  ████████▄ 
- ███    ███ ███    ███ ███    ███  ███        ███    ███     ███     ███    ███ ███       ███   ▀███
- ███    █▀  ███    ███ ███    ███  ███        ███    ███     ███     ███    ███ ███       ███    ███
- ███        ███    ███ ███    ███ ▄███▄▄▄     ███▄▄▄▄███     ███     ███▄▄▄▄███ ███▄▄▄     ████████▀ 
- ███   ████ ███    ███ ███    ███  ▀▀███▀▀▀   ███▀▀▀▀███     ███     ███▀▀▀▀███ ███▀▀▀     ███  ▀███ 
- ███    ██  ███    ███ ███    ███  ███        ███    ███     ███     ███    ███ ███       ███    ███
- ████████▀   ▀██████▀  ████████▀   ███        ███    █▀      ███     ███    █▀  ████████  ███    █▀  
+ ███    ███ ███    ███ ███    ███  ███        ███    ███      ███     ███    ███ ███       ███   ▀███
+ ███    █▀  ███    ███ ███    ███  ███        ███    ███      ███     ███    ███ ███       ███    ███
+ ███        ███    ███ ███    ███ ▄███▄▄▄     ███▄▄▄▄███      ███     ███▄▄▄▄███ ███▄▄▄     ████████▀ 
+ ███    ████ ███    ███ ███    ███  ▀▀███▀▀▀   ███▀▀▀▀███      ███     ███▀▀▀▀███ ███▀▀▀     ███  ▀███ 
+ ███    ██  ███    ███ ███    ███  ███        ███    ███      ███     ███    ███ ███       ███    ███
+ ████████▀   ▀██████▀  ████████▀   ███        ███    █▀       ███     ███    █▀  ████████  ███    █▀  
 
 {Fore.RED}══════════════════════════════════════════════════════════════════════════════════════════════════
 {Fore.RED}{Style.BRIGHT}   [!] SENSITIVE DATA CAN HIDE, BUT IT CAN'T ESCAPE THE FATHER.
 {Fore.RED}══════════════════════════════════════════════════════════════════════════════════════════════════
 
-{Fore.RED}   {Fore.WHITE}»{Fore.RED} SECRETS WILL BE EXTRACTED           {Fore.WHITE}AUTHOR  :{Fore.RED} DHARMVEER
+{Fore.RED}   {Fore.WHITE}»{Fore.RED} SECRETS WILL BE EXTRACTED            {Fore.WHITE}AUTHOR   :{Fore.RED} DHARMVEER
 {Fore.RED}   {Fore.WHITE}»{Fore.RED} MISCONFIGURATIONS WILL BE EXPLOITED {Fore.WHITE}VERSION :{Fore.RED} GOD-FATHER v16.0
-{Fore.RED}   {Fore.WHITE}»{Fore.RED} SILENCE WILL NOT SAVE YOU           {Fore.WHITE}MODE    :{Fore.RED} NO RULES • NO MERCY
+{Fore.RED}   {Fore.WHITE}»{Fore.RED} SILENCE WILL NOT SAVE YOU            {Fore.WHITE}MODE     :{Fore.RED} NO RULES • NO MERCY
 
 {Fore.RED}────────────────────────────────────────
 {Fore.RED}   STATUS : {Fore.GREEN}ACTIVE HUNTING {Fore.RED}──► {Fore.WHITE}TARGETS WILL BLEED DATA
@@ -57,14 +57,19 @@ def print_banner():
 
 def update_script():
     repo_url = "https://raw.githubusercontent.com/D-666-V/THE_GOD_FATHER/main/GOD_FATHER.py"
+    cache_bypass_url = f"{repo_url}?v={uuid.uuid4().hex}"
     print(f"{Fore.YELLOW}[*] Checking for updates...")
     try:
-        response = requests.get(repo_url, timeout=10)
+        response = requests.get(cache_bypass_url, timeout=10)
         if response.status_code == 200:
-            with open(__file__, "wb") as f:
-                f.write(response.content)
-            print(f"{Fore.GREEN}[+] GOD_FATHER.py updated successfully!")
-            sys.exit(0)
+            new_content = response.content
+            if len(new_content) > 1000:
+                with open(__file__, "wb") as f:
+                    f.write(new_content)
+                print(f"{Fore.GREEN}[+] GOD_FATHER.py updated successfully! Please restart.")
+                sys.exit(0)
+            else:
+                print(f"{Fore.RED}[!] Update failed: Invalid file content received.")
         else:
             print(f"{Fore.RED}[!] Update failed. Status: {response.status_code}")
     except Exception as e:
