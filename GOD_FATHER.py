@@ -7,6 +7,7 @@ import sys
 import threading
 import uuid
 import time
+import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse, urljoin
 from colorama import Fore, init, Style
@@ -47,7 +48,7 @@ def print_banner():
 {Fore.RED}══════════════════════════════════════════════════════════════════════════════════════════════════
 
 {Fore.RED}   {Fore.WHITE}»{Fore.RED} SECRETS WILL BE EXTRACTED            {Fore.WHITE}AUTHOR  :{Fore.RED} DHARMVEER
-{Fore.RED}   {Fore.WHITE}»{Fore.RED} MISCONFIGURATIONS WILL BE EXPLOITED {Fore.WHITE}VERSION :{Fore.RED} GOD-FATHER v17.0
+{Fore.RED}   {Fore.WHITE}»{Fore.RED} MISCONFIGURATIONS WILL BE EXPLOITED {Fore.WHITE}VERSION :{Fore.RED} GOD-FATHER v16.0
 {Fore.RED}   {Fore.WHITE}»{Fore.RED} SILENCE WILL NOT SAVE YOU            {Fore.WHITE}MODE    :{Fore.RED} NO RULES • NO MERCY
 
 {Fore.RED}────────────────────────────────────────
@@ -57,46 +58,53 @@ def print_banner():
     print(b)
 
 def update_script():
+    # Random ID generator for extreme cache busting
+    random_id = uuid.uuid4().hex[:10]
     repo_raw = "https://raw.githubusercontent.com/D-666-V/THE_GOD_FATHER/main/GOD_FATHER.py"
-    cache_bypass_url = f"{repo_raw}?nocache={int(time.time())}"
+    cache_bypass_url = f"{repo_raw}?v={random_id}&t={int(time.time())}"
     
-    print(f"{Fore.YELLOW}[*] Bypassing GitHub cache and fetching latest version...")
+    print(f"{Fore.YELLOW}[*] Force fetching fresh build from GitHub (Bypassing CDN)...")
     
     headers = {
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         'Pragma': 'no-cache',
         'Expires': '0',
-        'User-Agent': f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) {uuid.uuid4().hex[:6]}'
+        'User-Agent': f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) {random_id}'
     }
     
     try:
+        # Session use nahi karenge yaha taaki purani settings interfere na karein
         resp = requests.get(cache_bypass_url, headers=headers, timeout=20)
         if resp.status_code == 200:
             new_code = resp.text
             
-            new_imports = re.findall(r'^(?:import|from)\s+([a-zA-Z0-9_]+)', new_code, re.M)
-            current_modules = sys.modules.keys()
-            
+            # Agar file empty ya bohot choti hai toh update mat karna
+            if len(new_code) < 500:
+                print(f"{Fore.RED}[!] Error: Received invalid/empty file from GitHub.")
+                sys.exit(1)
+
             with open(__file__, "w", encoding='utf-8') as f:
                 f.write(new_code)
             
-            print(f"{Fore.GREEN}[+] Code updated successfully!")
+            print(f"{Fore.GREEN}[+] GOD-FATHER updated to latest version successfully!")
             
+            # Dependency check
+            new_imports = re.findall(r'^(?:import|from)\s+([a-zA-Z0-9_]+)', new_code, re.M)
+            current_modules = sys.modules.keys()
             for mod in set(new_imports):
                 if mod not in current_modules and mod not in sys.builtin_module_names:
                     try:
-                        print(f"{Fore.CYAN}[*] Installing new dependency: {mod}...")
                         subprocess.check_call([sys.executable, "-m", "pip", "install", mod], stdout=subprocess.DEVNULL)
                     except: pass
             
-            print(f"{Fore.GREEN}[!] GOD-FATHER is now fresh. Restarting...")
+            print(f"{Fore.GREEN}[!] Restarting with fresh code...")
             
-            # Restart logic fix: remove update flags to stop the loop
+            # Restart without -up flag
             clean_args = [a for a in sys.argv if a not in ['-up', '--update']]
             os.execv(sys.executable, [sys.executable] + clean_args)
             
         else:
-            print(f"{Fore.RED}[!] Update failed. Status: {resp.status_code}")
+            print(f"{Fore.RED}[!] Update failed. GitHub Status: {resp.status_code}")
     except Exception as e:
         print(f"{Fore.RED}[!] Update error: {e}")
     sys.exit(1)
